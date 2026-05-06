@@ -80,7 +80,7 @@ impl Game {
     /// Get player Y coordinate
     pub fn player_y(&self) -> i32 {
         let player = self.world.player();
-        player.position.y as i32
+        player.position.z as i32
     }
 
     /// Get dungeon width
@@ -119,12 +119,14 @@ impl Game {
     /// Render game state to vertices
     /// Returns flattened vertex buffer as Vec<f32> (x, y, z, r, g, b, a for each vertex)
     pub fn render(&mut self) -> Vec<f32> {
-        let player = self.world.player();
+        let (px, py) = {
+            let player = self.world.player();
+            (player.position.x as i32, player.position.z as i32)
+        };
         self.renderer.update_from_game_state(
-            player.position.x as i32,
-            player.position.y as i32,
-            self.world.level.width as i32,
-            self.world.level.height as i32,
+            px,
+            py,
+            &self.world.level,
         );
 
         // Convert vertices to flat f32 array for JavaScript

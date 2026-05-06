@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::rng::Rng;
 
 /// Tile type in a dungeon level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,5 +48,97 @@ impl Level {
             self.get(x, y),
             Some(Tile::Floor) | Some(Tile::Corridor) | Some(Tile::Stairs)
         )
+    }
+
+    /// Generate a dungeon with rooms and connecting corridors
+    pub fn generate(&mut self, rng: &mut Rng) {
+        // Fill everything with empty
+        for row in &mut self.tiles {
+            for tile in row.iter_mut() {
+                *tile = Tile::Empty;
+            }
+        }
+
+        let mut rooms: Vec<(i32, i32, i32, i32)> = Vec::new(); // (x, y, w, h)
+
+        // Try to place up to 12 rooms
+        for _ in 0..50 {
+            let rw = 6 + rng.next_u32(10) as i32;
+            let rh = 4 + rng.next_u32(5) as i32;
+            let max_rx = (self.width as i32 - rw - 2).max(1);
+            let max_ry = (self.height as i32 - rh - 2).max(1);
+            let rx = 1 + rng.next_u32(max_rx as u32) as i32;
+            let ry = 1 + rng.next_u32(max_ry as u32) as i32;
+
+            // Check overlap with existing rooms (1 tile gap)
+            let overlaps = rooms.iter().any(|&(ox, oy, ow, oh)| {
+                rx < ox + ow + 2 && rx + rw + 2 > ox && ry < oy + oh + 2 && ry + rh + 2 > oy
+            });
+
+            if !overlaps {
+                rooms.push((rx, ry, rw, rh));
+                if rooms.len() >= 12 {
+                    break;
+                }
+            }
+        }
+
+        // Draw rooms: wall border + floor interior
+        for &(rx, ry, rw, rh) in &rooms {
+            for dx in 0..rw {
+                for dy in 0..rh {
+                    let x = (rx + dx) as usize;
+                    let y = (ry + dy) as usize;
+                    let on_edge = dx == 0 || dx == rw - 1 || dy == 0 || dy == rh - 1;
+                    self.tiles[y][x] = if on_edge { Tile::Wall } else { Tile::Floor };
+                }
+            }
+        }
+
+        // Connect rooms with L-shaped corridors
+        for i in 1..rooms.len() {
+            let (x1, y1, w1, h1) = rooms[i - 1];
+            let (x2, y2, w2, h2) = rooms[i];
+            let cx1 = x1 + w1 / 2;
+            let cy1 = y1 + h1 / 2;
+            let cx2 = x2 + w2 / 2;
+            let cy2 = y2 + h2 / 2;
+
+            // Horizontal segment
+            let (sx, ex) = if cx1 <= cx2 { (cx1, cx2) } else { (cx2, cx1) };
+            for x in sx..=ex {
+                let tile = &mut self.tiles[cy1 as usize][x as usize];
+                if *tile == Tile::Empty {
+                    *tile = Tile::Corridor;
+                }
+            }
+            // Vertical segment
+            let (sy, ey) = if cy1 <= cy2 { (cy1, cy2) } else { (cy2, cy1) };
+            for y in sy..=ey {
+                let tile = &mut self.tiles[y as usize][cx2 as usize];
+                if *tile == Tile::Empty {
+                    *tile = Tile::Corridor;
+                }
+            }
+        }
+
+        // Add stairs in last room
+        if let Some(&(rx, ry, rw, rh)) = rooms.last() {
+            let sx = (rx + rw / 2) as usize;
+            let sy = (ry + rh / 2) as usize;
+            self.tiles[sy][sx] = Tile::Stairs;
+        }
+    }
+
+    /// Return the center of the first room (for player start position)
+    pub fn first_room_center(&self) -> (usize, usize) {
+        for y in 1..self.height - 1 {
+            for x in 1..self.width - 1 {
+                if self.tiles[y][x] == Tile::Floor {
+                    return (x, y);
+                }
+            }
+        }
+        (self.width / 2, self.height / 2)
     }
 }

@@ -4,6 +4,7 @@
 
 use crate::camera::{Camera3D, ViewMode};
 use crate::dungeon::Level;
+use crate::rng::Rng;
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
@@ -47,26 +48,25 @@ pub struct World3D {
 }
 
 impl World3D {
-    /// Create a new world
+    /// Create a new world with a generated dungeon
     pub fn new(width: usize, height: usize) -> Self {
-        let level = Level::new(width, height);
-        
-        // Create player entity at center
-        let player_pos = Vec3::new(
-            (width / 2) as f32,
-            0.0,
-            (height / 2) as f32,
-        );
-        
-        let mut entities = vec![
+        let mut level = Level::new(width, height);
+        let mut rng = Rng::new(42);
+        level.generate(&mut rng);
+
+        // Place player at center of first room
+        let (px, py) = level.first_room_center();
+        let player_pos = Vec3::new(px as f32, 0.0, py as f32);
+
+        let entities = vec![
             Entity {
                 position: player_pos,
                 glyph: '@',
-                color: [0.0, 1.0, 0.0, 1.0],
+                color: [1.0, 1.0, 0.0, 1.0],
                 name: "Player".to_string(),
             }
         ];
-        
+
         Self {
             level,
             entities,
@@ -86,13 +86,16 @@ impl World3D {
         &mut self.entities[self.player_idx]
     }
     
-    /// Move player in 3D space
+    /// Move player in 3D space (with wall collision)
     pub fn move_player(&mut self, dx: f32, dy: f32, dz: f32) {
         let new_pos = self.player().position + Vec3::new(dx, dy, dz);
-        
-        // Check bounds
+        let nx = new_pos.x as usize;
+        let nz = new_pos.z as usize;
+
+        // Only move onto walkable tiles within bounds
         if new_pos.x >= 0.0 && new_pos.x < self.level.width as f32
             && new_pos.z >= 0.0 && new_pos.z < self.level.height as f32
+            && self.level.is_walkable(nx, nz)
         {
             self.player_mut().position = new_pos;
             self.turns += 1;

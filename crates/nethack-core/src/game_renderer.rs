@@ -40,19 +40,13 @@ impl GameRenderer {
         &mut self,
         player_x: i32,
         player_y: i32,
-        dungeon_width: i32,
-        dungeon_height: i32,
+        level: &crate::dungeon::Level,
     ) {
         self.vertices.clear();
         self.indices.clear();
 
-        // Draw dungeon floor grid first (background)
-        self.add_dungeon_floor(
-            player_x,
-            player_y,
-            dungeon_width,
-            dungeon_height,
-        );
+        // Draw dungeon tiles first (background)
+        self.add_dungeon_tiles(level);
 
         // Draw monsters from C library (desktop only)
         #[cfg(not(target_arch = "wasm32"))]
@@ -71,43 +65,30 @@ impl GameRenderer {
         self.add_stairs_from_c();
 
         // Draw player last (on top of everything)
-        self.add_player_cube(player_x as f32, player_y as f32);
+        self.add_player_tile(player_x as f32, player_y as f32);
     }
 
     /// Add player as a visible tile (top-down 2D)
-    fn add_player_cube(&mut self, x: f32, y: f32) {
+    fn add_player_tile(&mut self, x: f32, y: f32) {
         let player_color = [1.0, 1.0, 0.0, 1.0]; // Bright Yellow
-        // Draw player as a full tile at floor level (z = dungeon Y = y param)
         self.add_tile(x, y, 1.0, 0.0, player_color);
     }
 
-    /// Add dungeon floor as a grid of tiles
-    fn add_dungeon_floor(
-        &mut self,
-        player_x: i32,
-        player_y: i32,
-        width: i32,
-        height: i32,
-    ) {
-        let floor_color = [0.5, 0.5, 0.5, 1.0]; // Gray
-        let tile_size = 1.0;
-        let floor_height = 0.0;
+    /// Add dungeon tiles with color-coded types
+    fn add_dungeon_tiles(&mut self, level: &crate::dungeon::Level) {
+        use crate::dungeon::Tile;
 
-        // Draw entire dungeon floor
-        let min_x = 0;
-        let max_x = width - 1;
-        let min_y = 0;
-        let max_y = height - 1;
-
-        for tx in min_x..=max_x {
-            for ty in min_y..=max_y {
-                self.add_tile(
-                    tx as f32,
-                    ty as f32,
-                    tile_size,
-                    floor_height,
-                    floor_color,
-                );
+        for ty in 0..level.height {
+            for tx in 0..level.width {
+                let color = match level.tiles[ty][tx] {
+                    Tile::Empty    => continue, // Don't draw — black background shows through
+                    Tile::Wall     => [0.8, 0.8, 0.8, 1.0], // Light gray (stone wall)
+                    Tile::Floor    => [0.45, 0.32, 0.18, 1.0], // Brown (dungeon floor)
+                    Tile::Corridor => [0.30, 0.22, 0.12, 1.0], // Dark brown (corridor)
+                    Tile::Stairs   => [0.2, 0.8, 0.2, 1.0],  // Green (stairs)
+                    Tile::Trap     => [0.8, 0.2, 0.2, 1.0],  // Red (trap)
+                };
+                self.add_tile(tx as f32, ty as f32, 1.0, 0.0, color);
             }
         }
     }

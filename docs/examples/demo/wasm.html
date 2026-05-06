@@ -516,22 +516,25 @@
             const wrapper = document.getElementById('canvas-wrapper');
             wrapper.innerHTML = '';
             
-            const width = 800;
-            const height = 600;
+            // Compute square tile size: fit 80 tiles in available width
+            const maxWidth = Math.min(wrapper.clientWidth || 800, 960);
+            const tileSize = Math.floor(maxWidth / 80);
+            const width = tileSize * 80;   // e.g. 10 * 80 = 800
+            const height = tileSize * 24;  // e.g. 10 * 24 = 240  (square tiles)
             
             canvas = document.createElement('canvas');
             canvas.width = width;
             canvas.height = height;
+            canvas.style.width = '100%';
+            canvas.style.height = 'auto';
             canvas.style.border = '2px solid #666';
             canvas.style.backgroundColor = '#000';
             
             wrapper.appendChild(canvas);
             ctx = canvas.getContext('2d');
             
-            // Debug canvas initialization
-            addDebugLog('Canvas created: ' + width + 'x' + height);
+            addDebugLog('Canvas: ' + width + 'x' + height + ' (tile=' + tileSize + 'px)');
             addDebugLog('Context: ' + (ctx ? 'OK' : 'FAILED'));
-            addDebugLog('Wrapper: ' + (wrapper ? 'OK' : 'MISSING'));
             
             // Set up input
             setupInput();
@@ -644,8 +647,10 @@
             // x = dungeon tile X (0-79)
             // y = height (0.0=floor, 0.1-0.9=player cube) -- IGNORED for top-down 2D
             // z = dungeon tile Y (0-23) -- used as screen Y
-            const scaleX = canvas.width / 80;    // X: 0-79 dungeon → pixels
-            const scaleY = canvas.height / 24;   // Z: 0-23 dungeon → pixels
+            // Square tiles: use same scale for X and Z
+            const tileSize = canvas.width / 80;  // = canvas.height / 24 (square tiles)
+            const scaleX = tileSize;
+            const scaleY = tileSize;
             
             // Track X and Z (dungeon Y) ranges
             let minX = Infinity, maxX = -Infinity;
