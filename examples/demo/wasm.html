@@ -659,9 +659,11 @@
         }
 
         function renderVertices(vertices, indices) {
-            const scale = 20; // pixels per dungeon tile
-            const offsetX = canvas.width / 2;
-            const offsetY = canvas.height / 2;
+            // Dungeon is 80x24 tiles, fit into 800x600 canvas
+            const scaleX = canvas.width / 80;   // ~10 pixels per tile width
+            const scaleY = canvas.height / 24;  // ~25 pixels per tile height
+            const offsetX = 0;
+            const offsetY = 0;
             
             // Debug: log first few triangles
             let trianglesDrawn = 0;
@@ -673,8 +675,8 @@
                 const i2 = indices[i + 2] * 7;
 
                 const p0 = {
-                    x: vertices[i0] * scale + offsetX,
-                    y: vertices[i0 + 1] * scale + offsetY,
+                    x: vertices[i0] * scaleX + offsetX,
+                    y: vertices[i0 + 1] * scaleY + offsetY,
                     r: Math.round(vertices[i0 + 3] * 255),
                     g: Math.round(vertices[i0 + 4] * 255),
                     b: Math.round(vertices[i0 + 5] * 255),
@@ -682,8 +684,8 @@
                 };
 
                 const p1 = {
-                    x: vertices[i1] * scale + offsetX,
-                    y: vertices[i1 + 1] * scale + offsetY,
+                    x: vertices[i1] * scaleX + offsetX,
+                    y: vertices[i1 + 1] * scaleY + offsetY,
                     r: Math.round(vertices[i1 + 3] * 255),
                     g: Math.round(vertices[i1 + 4] * 255),
                     b: Math.round(vertices[i1 + 5] * 255),
@@ -691,8 +693,8 @@
                 };
 
                 const p2 = {
-                    x: vertices[i2] * scale + offsetX,
-                    y: vertices[i2 + 1] * scale + offsetY,
+                    x: vertices[i2] * scaleX + offsetX,
+                    y: vertices[i2 + 1] * scaleY + offsetY,
                     r: Math.round(vertices[i2 + 3] * 255),
                     g: Math.round(vertices[i2 + 4] * 255),
                     b: Math.round(vertices[i2 + 5] * 255),
