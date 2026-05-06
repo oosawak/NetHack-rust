@@ -426,6 +426,8 @@
         function handleMobileControl(action) {
             if (!game) return;
             
+            console.log('Mobile control action:', action);
+            
             switch(action) {
                 case 'up':
                     game.move_player(0, -1);
@@ -449,11 +451,9 @@
                 case 'cam3':
                 case 'cam4':
                     const camNum = parseInt(action[3]);
+                    console.log('Switching to camera:', camNum);
                     game.switch_camera(camNum);
                     addDebugLog(`Camera: ${camNum}`);
-                    break;
-                case 'debug':
-                    toggleDebugMode();
                     break;
             }
         }
@@ -552,6 +552,11 @@
             wrapper.appendChild(canvas);
             ctx = canvas.getContext('2d');
             
+            // Debug canvas initialization
+            console.log('Canvas created:', width + 'x' + height);
+            console.log('Context type:', ctx ? '2D context OK' : 'FAILED');
+            console.log('Wrapper element:', wrapper ? 'OK' : 'MISSING');
+            
             // Set up input
             setupInput();
         }
@@ -611,7 +616,10 @@
         }
 
         function render() {
-            if (!ctx || !game) return;
+            if (!ctx || !game) {
+                console.log('Render skipped: ctx=' + (ctx ? 'OK' : 'null') + ', game=' + (game ? 'OK' : 'null'));
+                return;
+            }
 
             const width = canvas.width;
             const height = canvas.height;
@@ -630,9 +638,11 @@
 
                 // Render triangles
                 if (vertices && vertices.length > 0 && indices && indices.length > 0) {
+                    console.log('Drawing ' + (indices.length / 3) + ' triangles');
                     renderVertices(vertices, indices);
                 } else {
                     // Draw placeholder message
+                    console.log('No vertices to render');
                     ctx.fillStyle = '#666';
                     ctx.font = '16px monospace';
                     ctx.fillText('No vertices to render', 20, 30);
