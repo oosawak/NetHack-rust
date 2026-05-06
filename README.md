@@ -35,10 +35,11 @@ Phase 4: Desktop Graphics Pipeline          ✅ DONE
   4.2: Game State → Vertices                ✅ DONE (Player cube, dungeon floor)
   4.3: Camera Integration (5 views)         ✅ DONE (TopDown, Isometric, etc.)
   4.4: Input System                         ✅ DONE (Arrow keys → movement)
-Phase 5: Monster & Item Rendering           ✅ DONE
+Phase 5: Dungeon Entity Rendering           ✅ DONE
   5.0: Infrastructure                       ✅ DONE (FFI wrappers, renderer stubs)
   5.1: Fix Linker & Enable Monster Render   ✅ DONE (svl extern, static lib, wrappers)
   5.2: Item Rendering                       ✅ DONE (Cyan cubes, OBJ_FLOOR enumeration)
+  5.3: Dungeon Features (Traps & Stairs)    ✅ DONE (Purple traps, green/blue stairs)
 Phase 6: WASM Build                         📋 Planned
 Phase 7: Unity Plugin (cdylib)              📋 Planned
 ```
@@ -162,17 +163,21 @@ docs/
 - Input → GameCommand → execution flow
 - Monster rendering from C library (red/yellow colored cubes)
 - Monster enumeration via safe FFI wrapper (get_monster_count/by_index)
-- Item rendering from C library (cyan colored cubes, smaller than monsters)
+- Item rendering from C library (cyan colored cubes)
 - Item enumeration via safe FFI wrapper (get_object_count/by_index, OBJ_FLOOR filter)
+- Trap rendering from C library (purple cubes, tiny size)
+- Trap enumeration via safe FFI wrapper (get_trap_count/by_index)
+- Stairway rendering from C library (green=up, blue=down)
+- Stairway enumeration via safe FFI wrapper (get_stair_count/by_index)
 
 🔄 **In Progress:**
-- Expanded dungeon features (stairs, doors, traps)
 - Game turn cycle integration
+- More dungeon features (doors, etc.)
 
 📋 **Planned:**
 - WASM target for browser play
 - Unity native plugin
-- More game entities (traps, doors, etc.)
+- More game entities (doors, etc.)
 - Sound and music
 - Save/load game state
 - UI overlays (inventory, status)
@@ -191,22 +196,26 @@ docs/
 
 ## 📝 Recent Changes
 
-### Phase 5.2: Item Rendering (Latest - Current)
+### Phase 5.3: Dungeon Features (Traps & Stairs) (Latest - Current)
+- ✅ Implemented trap enumeration from C library (gf.ftrap list)
+- ✅ Added safe FFI wrappers: `get_trap_count()`, `get_trap_by_index()`
+- ✅ Implemented stairway enumeration (gs.stairs list)
+- ✅ Added safe FFI wrappers: `get_stair_count()`, `get_stair_by_index()`
+- ✅ Traps render as tiny (0.15 size) purple cubes
+- ✅ Stairs render with direction distinction: green (up), blue (down)
+- ✅ Fixed FFI header conflicts with NetHack includes
+- ✅ All 17 tests passing, release binary 14MB
+
+### Phase 5.2: Item Rendering
 - ✅ Implemented item enumeration from C library
 - ✅ Added safe FFI wrappers: `get_object_count()`, `get_object_by_index()`
 - ✅ Items render as cyan cubes (distinct from monsters and player)
 - ✅ Proper OBJ_FLOOR filtering to show only dungeon floor items
-- ✅ All 17 tests passing, release binary 14MB
 
 ### Phase 5.1: Monster Rendering & Linker Fix
 - Fixed critical linker error by declaring `extern struct instance_globals_saved_l svl`
 - Resolved missing symbol issues via static library archive (libnetHack.a)
 - Implemented monster enumeration and rendering (red=hostile, yellow=peaceful)
-
-### Phase 4.4: Input System & Camera Integration
-- Arrow keys mapped to movement commands
-- V key for camera mode switching (5 modes)
-- Proper event loop integration with winit
 
 ---
 
