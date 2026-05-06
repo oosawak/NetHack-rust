@@ -31,7 +31,8 @@ fn main() {
     println!("cargo:rerun-if-changed=wrapper.h");
     println!("cargo:rerun-if-changed=wrapper.c");
 
-    // Generate FFI bindings using bindgen
+    // Generate FFI bindings using bindgen (for all targets)
+    // Note: This requires clang even for WASM
     let bindings = bindgen::Builder::default()
         .header(manifest_dir.join("wrapper.h").to_string_lossy())
         .clang_arg(format!("-I{}", include_dir.display()))
@@ -96,9 +97,17 @@ fn main() {
         .generate()
         .expect("Unable to generate bindings");
 
-    bindings
+     bindings
         .write_to_file(out_dir.join("ffi.rs"))
         .expect("Couldn't write bindings!");
+
+    // Skip C compilation for WASM target (bindgen still runs above)
+    if let Ok(target_arch) = env::var("CARGO_CFG_TARGET_ARCH") {
+        if target_arch == "wasm32" {
+            println!("cargo:warning=Skipping C compilation for WASM target");
+            return;
+        }
+    }
 
     // Compile wrapper.c (accessor functions)
     let wrapper_src = manifest_dir.join("wrapper.c");

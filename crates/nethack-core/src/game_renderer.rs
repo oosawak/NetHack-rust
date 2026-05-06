@@ -34,8 +34,8 @@ impl GameRenderer {
     /// This is called each frame to update vertex data based on:
     /// - Player position
     /// - Dungeon layout
-    /// - Monsters
-    /// - Items
+    /// - Monsters (desktop only)
+    /// - Items (desktop only)
     pub fn update_from_game_state(
         &mut self,
         player_x: i32,
@@ -57,16 +57,20 @@ impl GameRenderer {
             dungeon_height,
         );
 
-        // Draw monsters from C library
+        // Draw monsters from C library (desktop only)
+        #[cfg(not(target_arch = "wasm32"))]
         self.add_monsters_from_c();
 
-        // Draw items from C library
+        // Draw items from C library (desktop only)
+        #[cfg(not(target_arch = "wasm32"))]
         self.add_items_from_c();
 
-        // Draw traps from C library
+        // Draw traps from C library (desktop only)
+        #[cfg(not(target_arch = "wasm32"))]
         self.add_traps_from_c();
 
-        // Draw stairs from C library
+        // Draw stairs from C library (desktop only)
+        #[cfg(not(target_arch = "wasm32"))]
         self.add_stairs_from_c();
     }
 
@@ -217,6 +221,7 @@ impl GameRenderer {
     }
 
     /// Add monsters from C library (if available)
+    #[cfg(not(target_arch = "wasm32"))]
     fn add_monsters_from_c(&mut self) {
         // Call C wrapper functions to get monsters from the game library
         // These are safe wrappers around the C fmon linked list
@@ -254,6 +259,7 @@ impl GameRenderer {
     }
 
     /// Add items from C library (if available)
+    #[cfg(not(target_arch = "wasm32"))]
     fn add_items_from_c(&mut self) {
         let count = unsafe { nethack_sys::get_object_count() };
         
@@ -323,6 +329,7 @@ impl GameRenderer {
     }
 
     /// Add traps from C library
+    #[cfg(not(target_arch = "wasm32"))]
     fn add_traps_from_c(&mut self) {
         let count = unsafe { nethack_sys::get_trap_count() };
         
@@ -352,6 +359,7 @@ impl GameRenderer {
     }
 
     /// Add stairs from C library
+    #[cfg(not(target_arch = "wasm32"))]
     fn add_stairs_from_c(&mut self) {
         let count = unsafe { nethack_sys::get_stair_count() };
         

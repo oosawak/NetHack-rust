@@ -1,6 +1,6 @@
 # NetHack Rust + WASM + wgpu
 
-> **🚀 Active Development** | Phase 5.1 Complete, Phase 5.2 In Progress
+> **🚀 Active Development** | Phase 5.3 Complete, Phase 6 WASM Complete
 
 NetHack 5.0 ported to **FFI-First** approach using Rust + wgpu + WebGPU. Reuses ~250k lines of stable C game logic while implementing modern 3D graphics for Desktop, WASM, and Unity.
 
@@ -17,8 +17,8 @@ NetHack 5.0 ported to **FFI-First** approach using Rust + wgpu + WebGPU. Reuses 
 
 | Platform | Status | Estimated Phase |
 |----------|--------|-----------------|
-| **Desktop** (Linux/Mac/Windows) | 🔄 **In Progress** (Phase 4) | Phase 4.5 |
-| **WebAssembly** (Browser) | 📋 Planned | Phase 6 |
+| **Desktop** (Linux/Mac/Windows) | 🔄 **In Progress** (Phase 5) | Phase 5.4 |
+| **WebAssembly** (Browser) | ✅ **Build Complete** (Phase 6) | Phase 6.2 |
 | **Unity** Native Plugin | 📋 Planned | Phase 7 |
 
 ---
@@ -40,7 +40,10 @@ Phase 5: Dungeon Entity Rendering           ✅ DONE
   5.1: Fix Linker & Enable Monster Render   ✅ DONE (svl extern, static lib, wrappers)
   5.2: Item Rendering                       ✅ DONE (Cyan cubes, OBJ_FLOOR enumeration)
   5.3: Dungeon Features (Traps & Stairs)    ✅ DONE (Purple traps, green/blue stairs)
-Phase 6: WASM Build                         📋 Planned
+Phase 6: WASM Build                         ✅ DONE
+  6.1: WASM Target Setup                    ✅ DONE (wasm-bindgen, wasm-pack build)
+  6.2: WASM Game Bridge (Rust-only)         ✅ DONE (No C library, pure Rust logic)
+  6.3: JavaScript API (wasm-bindgen)        ✅ DONE (Game struct exported to JS)
 Phase 7: Unity Plugin (cdylib)              📋 Planned
 ```
 
@@ -52,6 +55,7 @@ Phase 7: Unity Plugin (cdylib)              📋 Planned
 | **nethack-core** | ✅ Complete | Camera (5 modes), Input, GameRenderer, Monster render enabled |
 | **nethack-render** | ✅ Complete | wgpu pipeline, WGSL shaders |
 | **nethack-desktop** | 🔄 Active | winit + wgpu, input handling, monster/item rendering |
+| **nethack-wasm** | ✅ Complete | WASM build (28KB binary), wasm-bindgen API, no C library |
 | **Tests** | ✅ 17 Passing | camera, input, game_renderer, world, all passing release/debug |
 
 ---
@@ -87,6 +91,24 @@ cargo run -p nethack-desktop
 cargo test -p nethack-core
 ```
 
+### Build for WebAssembly (WASM)
+
+```bash
+# Run setup script to install wasm-pack and related tools
+./setup_wasm.sh
+
+# Build WASM module
+wasm-pack build crates/nethack-wasm --target web --release
+
+# Output: crates/nethack-wasm/pkg/
+#   - nethack_wasm.wasm (28KB binary)
+#   - nethack_wasm.js (JavaScript bindings)
+#   - nethack_wasm.d.ts (TypeScript types)
+#   - package.json (npm package)
+```
+
+**Note:** The WASM build uses Rust-only game logic (no C library). It's ideal for quick browser testing and deployment.
+
 ### Controls
 
 - **Arrow Keys** — Move player (↑↓←→)
@@ -103,6 +125,7 @@ cargo test -p nethack-core
 ## 🏗️ Architecture
 
 ```
+Desktop (C library):
 libnetHack.a (C library)
     ↓ FFI
 nethack-sys (auto-generated bindings)
@@ -112,6 +135,13 @@ nethack-core (Game layer: camera, input, rendering logic)
 nethack-render (Graphics layer: wgpu + WGSL)
     ↓
 nethack-desktop (Desktop: winit event loop)
+
+WASM (Rust-only):
+nethack-core (Rust game logic - no C library)
+    ↓
+nethack-wasm (wasm-bindgen JavaScript API)
+    ↓
+Browser (WebAssembly binary + JavaScript)
 ```
 
 ### Rendering Pipeline
@@ -196,7 +226,16 @@ docs/
 
 ## 📝 Recent Changes
 
-### Phase 5.3: Dungeon Features (Traps & Stairs) (Latest - Current)
+### Phase 6: WASM Build Complete (Latest - Current)
+- ✅ Setup wasm32-unknown-unknown target with wasm-pack
+- ✅ Created nethack-wasm crate with wasm-bindgen API
+- ✅ Conditional compilation: WASM uses Rust-only logic (no C library)
+- ✅ Implemented Game struct: init(), player_x/y, move_player(), render()
+- ✅ Vertex rendering: render() returns flat f32 array for JavaScript
+- ✅ Successfully built WASM binary (28KB) with wasm-pack
+- ℹ️  Note: C library not compiled for WASM - pure Rust game logic only
+
+### Phase 5.3: Dungeon Features (Traps & Stairs)
 - ✅ Implemented trap enumeration from C library (gf.ftrap list)
 - ✅ Added safe FFI wrappers: `get_trap_count()`, `get_trap_by_index()`
 - ✅ Implemented stairway enumeration (gs.stairs list)

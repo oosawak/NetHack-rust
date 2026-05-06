@@ -36,9 +36,21 @@ impl PlayerInfo {
     }
 }
 
-/// Get player info from C global `u`
-///
-/// Uses the safe accessor functions from wrapper.c to read player state.
+#[cfg(target_arch = "wasm32")]
+pub fn get_player_info() -> PlayerInfo {
+    // WASM stub: return default player info
+    // Actual game state is managed by Rust code in nethack-core
+    PlayerInfo {
+        x: 40,
+        y: 12,
+        level: 1,
+        hp: 50,
+        max_hp: 50,
+        dungeon_level: 1,
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn get_player_info() -> PlayerInfo {
     unsafe {
         // Call the safe C accessor functions
@@ -54,6 +66,12 @@ pub fn get_player_info() -> PlayerInfo {
 }
 
 /// Get player X coordinate
+#[cfg(target_arch = "wasm32")]
+pub fn get_x() -> i32 {
+    40
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn get_x() -> i32 {
     unsafe {
         crate::get_player_x()
@@ -61,6 +79,12 @@ pub fn get_x() -> i32 {
 }
 
 /// Get player Y coordinate
+#[cfg(target_arch = "wasm32")]
+pub fn get_y() -> i32 {
+    12
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn get_y() -> i32 {
     unsafe {
         crate::get_player_y()
@@ -68,6 +92,12 @@ pub fn get_y() -> i32 {
 }
 
 /// Get player level
+#[cfg(target_arch = "wasm32")]
+pub fn get_level() -> i32 {
+    1
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn get_level() -> i32 {
     unsafe {
         crate::get_player_level()
@@ -75,6 +105,12 @@ pub fn get_level() -> i32 {
 }
 
 /// Get player current HP
+#[cfg(target_arch = "wasm32")]
+pub fn get_hp() -> i32 {
+    50
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn get_hp() -> i32 {
     unsafe {
         crate::get_player_hp()
@@ -82,6 +118,12 @@ pub fn get_hp() -> i32 {
 }
 
 /// Get player max HP
+#[cfg(target_arch = "wasm32")]
+pub fn get_maxhp() -> i32 {
+    50
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn get_maxhp() -> i32 {
     unsafe {
         crate::get_player_maxhp()
@@ -89,6 +131,12 @@ pub fn get_maxhp() -> i32 {
 }
 
 /// Get dungeon level from C global `dlevel`
+#[cfg(target_arch = "wasm32")]
+pub fn get_current_level() -> i32 {
+    1
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn get_current_level() -> i32 {
     unsafe {
         crate::get_dlevel()
@@ -96,6 +144,12 @@ pub fn get_current_level() -> i32 {
 }
 
 /// Get total dungeon levels from C global `dunlevs`
+#[cfg(target_arch = "wasm32")]
+pub fn get_total_levels() -> i32 {
+    32
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn get_total_levels() -> i32 {
     unsafe {
         crate::get_dunlevs()
