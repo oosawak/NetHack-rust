@@ -89,25 +89,34 @@
 
         .sidebar-toggle {
             text-align: center;
-            margin-bottom: 10px;
             cursor: pointer;
             user-select: none;
             padding: 10px 0;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-toggle span {
+            color: #4a9eff;
+            font-size: 18px;
+            font-weight: bold;
+            display: inline-block;
+            transition: all 0.3s ease;
         }
 
         .sidebar.collapsed .sidebar-toggle {
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
+            position: fixed;
+            right: 10px;
+            top: 10px;
             margin-bottom: 0;
-            padding: 10px 5px;
-        }
-
-        .sidebar.collapsed .collapsible-panel {
-            display: none;
+            padding: 5px 10px;
+            background: #222;
+            border: 2px solid #4a9eff;
+            border-radius: 4px;
+            z-index: 1000;
         }
 
         .sidebar.collapsed .sidebar-toggle span {
-            display: block;
+            font-size: 24px;
         }
 
         .panel {
@@ -374,7 +383,16 @@
         // Toggle sidebar collapse
         function toggleSidebar() {
             const sidebar = document.querySelector('.sidebar');
+            const toggleBtn = document.querySelector('.sidebar-toggle span');
+            
             sidebar.classList.toggle('collapsed');
+            
+            // Update button text
+            if (sidebar.classList.contains('collapsed')) {
+                toggleBtn.textContent = '⟫';
+            } else {
+                toggleBtn.textContent = '⟦ Close';
+            }
         }
 
         // Import WASM module
