@@ -1,0 +1,14 @@
+[package]
+name = "nethack-render"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+wgpu = { version = "0.20", features = ["webgpu"] }
+bytemuck = { version = "1.16", features = ["derive"] }
+tracing = "0.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+pollster = "0.3"

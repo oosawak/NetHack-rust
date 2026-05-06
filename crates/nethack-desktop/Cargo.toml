@@ -1,0 +1,20 @@
+[package]
+name = "nethack-desktop"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "nethack"
+path = "src/main.rs"
+
+[dependencies]
+nethack-core = { path = "../nethack-core" }
+nethack-render = { path = "../nethack-render" }
+wgpu = { version = "0.20" }
+winit = "0.30"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+pollster = "0.3"
+anyhow = "1.0"

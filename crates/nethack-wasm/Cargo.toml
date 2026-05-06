@@ -1,0 +1,21 @@
+[package]
+name = "nethack-wasm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+nethack-core = { path = "../nethack-core" }
+nethack-render = { path = "../nethack-render" }
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Document",
+    "HtmlCanvasElement",
+] }
+wgpu = { version = "0.20" }
+wasm-bindgen-futures = "0.4"

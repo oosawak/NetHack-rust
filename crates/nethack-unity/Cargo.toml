@@ -1,0 +1,16 @@
+[package]
+name = "nethack-unity"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+nethack-sys = { path = "../nethack-sys" }
+nethack-core = { path = "../nethack-core" }
+libc = "0.2"
+lazy_static = "1.4"
+bincode = "1.3"
