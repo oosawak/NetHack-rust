@@ -668,8 +668,6 @@
             // X: 0-80 (dungeon width), Y: 0-1 (normalized height)
             const scaleX = canvas.width / 80;    // X: dungeon coords to pixels
             const scaleY = canvas.height;        // Y: normalized (0-1) to pixels
-            const offsetX = 0;
-            const offsetY = 0;
             
             // Find min/max X/Y values and color ranges
             let minX = Infinity, maxX = -Infinity;
@@ -691,10 +689,17 @@
                 maxB = Math.max(maxB, vertices[i + 5]);
             }
             
-            // Debug: log ranges
+            // Calculate center offset to keep geometry in view
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+            const offsetX = (canvas.width / 2) - (centerX * scaleX);
+            const offsetY = (canvas.height / 2) - (centerY * scaleY);
+            
+            // Debug: log ranges and offsets
             console.log('X range: ' + minX + ' to ' + maxX);
             console.log('Y range: ' + minY + ' to ' + maxY);
             console.log('RGB: R=' + minR + '-' + maxR + ' G=' + minG + '-' + maxG + ' B=' + minB + '-' + maxB);
+            console.log('Center: X=' + centerX.toFixed(1) + ' Y=' + centerY.toFixed(3) + ', Offset: X=' + offsetX.toFixed(0) + ' Y=' + offsetY.toFixed(0));
 
             // Draw triangles
             for (let i = 0; i < indices.length; i += 3) {
