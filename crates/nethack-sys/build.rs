@@ -55,6 +55,11 @@ fn main() {
         .allowlist_function("get_player_state")
         .allowlist_function("get_dlevel")
         .allowlist_function("get_dunlevs")
+        // Monster and object accessors
+        .allowlist_function("get_monster_count")
+        .allowlist_function("get_monster_by_index")
+        .allowlist_function("get_object_count")
+        .allowlist_function("get_object_by_index")
         // Variables
         .allowlist_var("dlevel")
         .allowlist_var("dunlevs")
@@ -70,6 +75,9 @@ fn main() {
         .allowlist_type("coord")
         .allowlist_type("dungeon_topology")
         .allowlist_type("window_procs")
+        .allowlist_type("monster_data_t")
+        .allowlist_type("object_data_t")
+        .allowlist_type("player_state_t")
         // Generate safe bindings where possible
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()

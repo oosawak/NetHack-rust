@@ -56,6 +56,12 @@ impl GameRenderer {
             dungeon_width,
             dungeon_height,
         );
+
+        // Draw monsters from C library
+        self.add_monsters_from_c();
+
+        // Draw items from C library
+        self.add_items_from_c();
     }
 
     /// Add player as a small colored cube
@@ -202,6 +208,65 @@ impl GameRenderer {
     /// Get index count
     pub fn index_count(&self) -> u32 {
         self.indices.len() as u32
+    }
+
+    /// Add monsters from C library (if available)
+    fn add_monsters_from_c(&mut self) {
+        // Note: This uses unsafe FFI to call C code, but gracefully handles if
+        // the C library is not available by relying on weak linking/stub implementations
+        use crate::input::GameCommand;  // Just to show this would work
+        
+        // Attempt to read monsters from C library
+        // This will only work if nethack-sys is properly linked with the C library
+        // For now, we skip this to avoid linker errors
+        // TODO: Enable when C library integration is complete
+    }
+
+    /// Add items from C library (if available)
+    fn add_items_from_c(&mut self) {
+        // Note: This would use unsafe FFI to call C code for item enumeration
+        // For now, items are disabled pending C library integration
+        // TODO: Implement level object enumeration
+    }
+
+    /// Add a small cube for creatures/items
+    fn add_creature_cube(&mut self, x: f32, y: f32, size: f32, color: [f32; 4]) {
+        let half = size / 2.0;
+        let height = 0.2;  // Slightly above floor
+        
+        // Bottom face
+        let v_start = self.vertices.len() as u16;
+        self.add_vertex(x - half, height, y - half, color);
+        self.add_vertex(x + half, height, y - half, color);
+        self.add_vertex(x + half, height, y + half, color);
+        self.add_vertex(x - half, height, y + half, color);
+        
+        // Top face
+        let height_top = height + size;
+        self.add_vertex(x - half, height_top, y - half, color);
+        self.add_vertex(x + half, height_top, y - half, color);
+        self.add_vertex(x + half, height_top, y + half, color);
+        self.add_vertex(x - half, height_top, y + half, color);
+        
+        // Create 12 triangles (2 per face × 6 faces)
+        // Bottom: 0,1,2 0,2,3
+        self.add_triangle(v_start + 0, v_start + 1, v_start + 2);
+        self.add_triangle(v_start + 0, v_start + 2, v_start + 3);
+        // Top: 4,6,5 4,7,6
+        self.add_triangle(v_start + 4, v_start + 6, v_start + 5);
+        self.add_triangle(v_start + 4, v_start + 7, v_start + 6);
+        // Front: 0,5,1 0,4,5
+        self.add_triangle(v_start + 0, v_start + 5, v_start + 1);
+        self.add_triangle(v_start + 0, v_start + 4, v_start + 5);
+        // Back: 2,7,3 2,6,7
+        self.add_triangle(v_start + 2, v_start + 7, v_start + 3);
+        self.add_triangle(v_start + 2, v_start + 6, v_start + 7);
+        // Left: 3,4,0 3,7,4
+        self.add_triangle(v_start + 3, v_start + 4, v_start + 0);
+        self.add_triangle(v_start + 3, v_start + 7, v_start + 4);
+        // Right: 1,5,2 2,5,6
+        self.add_triangle(v_start + 1, v_start + 5, v_start + 2);
+        self.add_triangle(v_start + 2, v_start + 5, v_start + 6);
     }
 }
 

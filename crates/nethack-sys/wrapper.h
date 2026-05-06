@@ -66,3 +66,26 @@ void get_player_state(player_state_t *state);
 int get_dlevel(void);
 int get_dunlevs(void);
 
+/* Monster data structure for FFI */
+typedef struct {
+    int x, y;                  /* Position */
+    int hp, max_hp;            /* Health */
+    int monster_id;            /* Unique ID */
+    int symbol;                /* ASCII representation */
+    int is_peaceful;           /* 1 if peaceful, 0 if hostile */
+} monster_data_t;
+
+/* Object data structure for FFI */
+typedef struct {
+    int x, y;        /* Position */
+    int object_id;   /* Object type ID */
+    int symbol;      /* ASCII representation */
+} object_data_t;
+
+/* Monster accessor functions */
+int get_monster_count(void);
+int get_monster_by_index(int index, monster_data_t *out);
+
+/* Object accessor functions */
+int get_object_count(void);
+int get_object_by_index(int index, object_data_t *out);

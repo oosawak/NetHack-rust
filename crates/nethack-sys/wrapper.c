@@ -3,47 +3,14 @@
  *
  * These functions provide safe, simple accessors to C structs that would be
  * complex to expose directly to Rust via FFI.
- *
- * NOTE: We use forward declarations instead of including hack.h
- * to avoid conflicts with the wrapper.h definitions.
  */
 
-#include <stddef.h>
-
-/* Forward declarations of NetHack structures */
-typedef short coordxy;
-
-typedef struct {
-    int dungeon_num, depth_num;
-} d_level;
-
-typedef struct {
-    coordxy ux, uy;
-    d_level uz, uz0;
-    int ulevel;
-    int mh, mhmax;
-    /* ... other fields not needed ... */
-} struct_you;
-
-typedef struct {
-    short mnum;
-    /* ... */
-} struct_role;
-
-typedef struct {
-    int x, y;
-} coord;
-
-/* FFI types from wrapper.h */
-typedef struct {
-    int x, y;
-    int level;
-    int hp, max_hp;
-    int dungeon_level;
-} player_state_t;
-
-/* External globals from NetHack */
-extern struct_you u;
+#include "config.h"
+#include "hack.h"
+#include "monst.h"
+#include "obj.h"
+#include "rm.h"
+#include "decl.h"
 
 /* Access player X position */
 int get_player_x(void) {
@@ -60,7 +27,7 @@ int get_player_level(void) {
     return u.ulevel;
 }
 
-/* Access player current HP */
+/* Access player HP */
 int get_player_hp(void) {
     return u.mh;
 }
@@ -70,12 +37,16 @@ int get_player_maxhp(void) {
     return u.mhmax;
 }
 
-/* Bulk read of player state */
+/* Bulk player state accessor */
+typedef struct {
+    int x, y;
+    int level;
+    int hp, max_hp;
+    int dungeon_level;
+} player_state_t;
+
 void get_player_state(player_state_t *state) {
-    if (state == NULL) {
-        return;
-    }
-    
+    if (!state) return;
     state->x = (int)u.ux;
     state->y = (int)u.uy;
     state->level = u.ulevel;
@@ -92,4 +63,71 @@ int get_dlevel(void) {
 /* Access total dungeon levels (placeholder) */
 int get_dunlevs(void) {
     return 50;  /* Placeholder - actual dunlevs tracking TODO */
+}
+
+/* FFI structure for passing monster data */
+typedef struct {
+    int x, y;                  /* Position */
+    int hp, max_hp;            /* Health */
+    int monster_id;            /* Unique ID */
+    int symbol;                /* ASCII representation */
+    int is_peaceful;           /* 1 if peaceful, 0 if hostile */
+} monster_data_t;
+
+/* FFI structure for passing object data */
+typedef struct {
+    int x, y;        /* Position */
+    int object_id;   /* Object type ID */
+    int symbol;      /* ASCII representation */
+} object_data_t;
+
+/* Get monster count (scan fmon list) */
+int get_monster_count(void) {
+    struct monst *m = fmon;
+    int count = 0;
+    while (m != NULL) {
+        count++;
+        m = m->nmon;
+    }
+    return count;
+}
+
+/* Get monster data by iteration index (0 to count-1) */
+int get_monster_by_index(int index, monster_data_t *out) {
+    if (!out) return -1;
+    
+    struct monst *m = fmon;
+    int count = 0;
+    
+    while (m != NULL && count < index) {
+        count++;
+        m = m->nmon;
+    }
+    
+    if (m == NULL) return 0;  /* Not found */
+    
+    out->x = (int)m->mx;
+    out->y = (int)m->my;
+    out->hp = m->mhp;
+    out->max_hp = m->mhpmax;
+    out->monster_id = m->mnum;
+    out->symbol = (int)'m';  /* Default symbol */
+    out->is_peaceful = (m->mpeaceful != 0) ? 1 : 0;
+    
+    return 1;  /* Success */
+}
+
+/* Get object count (stub - returns 0 for now) */
+int get_object_count(void) {
+    /* TODO: Properly enumerate level objects through fobj or dungeon state
+     * For now, returning 0 to allow basic monster rendering */
+    return 0;
+}
+
+/* Get object data by iteration index (stub - returns failure for now) */
+int get_object_by_index(int index, object_data_t *out) {
+    (void)index;  /* unused */
+    if (!out) return -1;
+    /* TODO: Implement level object enumeration */
+    return 0;  /* Not found */
 }
