@@ -44,12 +44,14 @@ struct monst;
 struct obj;
 struct dungeon_topology;
 struct window_procs;
+struct instance_globals_saved_l;
 
 extern struct you u;
 extern struct dungeon_topology dungeon;
 extern struct obj *fobj;
 extern struct monst *fmon;
 extern struct window_procs *windowprocs;
+extern struct instance_globals_saved_l svl;  /* For level data access */
 
 /* Safe accessor functions for player state */
 /* These are implemented in a companion C file to safely read struct you */

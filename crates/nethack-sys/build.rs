@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::env;
+use std::process::Command;
 use glob::glob;
 
 fn main() {
@@ -20,8 +21,10 @@ fn main() {
     }
 
     let src_dir = nethack_root.join("src");
+    let sys_dir = nethack_root.join("sys");
     let include_dir = nethack_root.join("include");
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     // Recompile if wrapper.h or wrapper.c changes
     println!("cargo:rerun-if-changed=build.rs");
@@ -83,25 +86,9 @@ fn main() {
         .generate()
         .expect("Unable to generate bindings");
 
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
-        .write_to_file(out_path.join("ffi.rs"))
+        .write_to_file(out_dir.join("ffi.rs"))
         .expect("Couldn't write bindings!");
-
-    // Link all NetHack object files except main entry points
-    let obj_pattern = src_dir.join("*.o");
-    let exclude_files = vec!["unixmain.o", "winmain.o", "macmain.o"];
-    let mut obj_count = 0;
-    
-    for obj_file in glob(&obj_pattern.to_string_lossy()).expect("Failed to read glob pattern") {
-        if let Ok(path) = obj_file {
-            let filename = path.file_name().unwrap().to_string_lossy();
-            if !exclude_files.contains(&filename.as_ref()) {
-                println!("cargo:rustc-link-arg={}", path.display());
-                obj_count += 1;
-            }
-        }
-    }
 
     // Compile wrapper.c (accessor functions)
     let wrapper_src = manifest_dir.join("wrapper.c");
@@ -113,13 +100,77 @@ fn main() {
             .compile("wrapper");
     }
 
+    // Compile essential sys files that provide library interface
+    let sys_files = vec![
+        "sys/libnh/libnhmain.c",  // Provides check_user_string, player_selection, etc.
+    ];
+    
+    for file in &sys_files {
+        let src_path = nethack_root.join(file);
+        if src_path.exists() {
+            cc::Build::new()
+                .file(&src_path)
+                .include(&include_dir)
+                .include(&src_dir)
+                .include(sys_dir.join("libnh"))
+                .flag("-DSHIM_GRAPHICS")
+                .flag("-DNOTTYGRAPHICS")
+                .flag("-DNOSHELL")
+                .flag("-DLIBNH")
+                .compile(&format!("sys_{}", PathBuf::from(file).file_stem().unwrap().to_string_lossy()));
+        }
+    }
+
+    // Create static archive from all pre-compiled NetHack object files
+    let obj_pattern = src_dir.join("*.o");
+    let exclude_files = vec!["unixmain.o", "winmain.o", "macmain.o"];
+    let mut obj_files = Vec::new();
+    let mut obj_count = 0;
+    
+    for obj_file in glob(&obj_pattern.to_string_lossy()).expect("Failed to read glob pattern") {
+        if let Ok(path) = obj_file {
+            let filename = path.file_name().unwrap().to_string_lossy();
+            if !exclude_files.contains(&filename.as_ref()) {
+                obj_files.push(path);
+                obj_count += 1;
+            }
+        }
+    }
+
+    // Create static library archive from object files
+    if !obj_files.is_empty() {
+        let lib_path = out_dir.join("libnetHack.a");
+        
+        // Remove existing archive
+        let _ = std::fs::remove_file(&lib_path);
+        
+        // Create archive with 'ar'
+        let mut ar_cmd = Command::new("ar");
+        ar_cmd.arg("rcs").arg(&lib_path);
+        
+        for obj_file in &obj_files {
+            ar_cmd.arg(obj_file);
+        }
+        
+        let output = ar_cmd.output().expect("Failed to run 'ar' command");
+        if !output.status.success() {
+            panic!(
+                "Failed to create static library: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        
+        // Link the static library
+        println!("cargo:rustc-link-search=native={}", out_dir.display());
+        println!("cargo:rustc-link-lib=static=netHack");
+    }
+
     // Link system libraries that NetHack depends on
     println!("cargo:rustc-link-lib=m");        // math
     println!("cargo:rustc-link-lib=lua5.4");   // lua
     println!("cargo:rustc-link-lib=ncurses");  // terminal control
 
-    println!("cargo:warning=Phase 2: FFI バインディング生成完了");
+    println!("cargo:warning=Phase 5.1: FFI エラー修正 (svl linker issue resolved)");
     println!("cargo:warning=Linked {} NetHack object files (excluded: main entries)", obj_count);
-    println!("cargo:warning=Exposed {} initialization functions", 10);
-    println!("cargo:warning=Generated FFI: {}", out_path.join("ffi.rs").display());
+    println!("cargo:warning=Generated FFI: {}", out_dir.join("ffi.rs").display());
 }

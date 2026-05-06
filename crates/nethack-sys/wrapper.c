@@ -11,6 +11,10 @@
 #include "obj.h"
 #include "rm.h"
 #include "decl.h"
+#include <unistd.h>
+#include <pwd.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* Access player X position */
 int get_player_x(void) {
@@ -83,7 +87,7 @@ typedef struct {
 
 /* Get monster count (scan fmon list) */
 int get_monster_count(void) {
-    struct monst *m = fmon;
+    struct monst *m = svl.level.monlist;
     int count = 0;
     while (m != NULL) {
         count++;
@@ -96,7 +100,7 @@ int get_monster_count(void) {
 int get_monster_by_index(int index, monster_data_t *out) {
     if (!out) return -1;
     
-    struct monst *m = fmon;
+    struct monst *m = svl.level.monlist;
     int count = 0;
     
     while (m != NULL && count < index) {
@@ -130,4 +134,41 @@ int get_object_by_index(int index, object_data_t *out) {
     if (!out) return -1;
     /* TODO: Implement level object enumeration */
     return 0;  /* Not found */
+}
+
+/* Wrapper for chdirx - change working directory
+ * Called by earlyarg.c when processing options.
+ * The static version in libnhmain.c isn't exported, so we provide a wrapper here. */
+void chdirx(const char *dir, boolean wr) {
+    if (!dir) return;
+    (void)wr;  /* unused */
+    
+    if (chdir(dir) == -1) {
+        /* Silently fail - directory might not exist or no permission */
+    }
+}
+
+/* Wrapper for whoami - get current user name
+ * Called by libnhmain.c and other files.
+ * The local version in libnhmain.c isn't exported, so we provide a wrapper here. */
+char *whoami(void) {
+    static char buf[256];
+    struct passwd *pw = getpwuid(getuid());
+    
+    if (pw && pw->pw_name) {
+        strncpy(buf, pw->pw_name, sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = '\0';
+        return buf;
+    }
+    
+    /* Fallback to environment or default */
+    const char *user = getenv("USER");
+    if (user) {
+        strncpy(buf, user, sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = '\0';
+        return buf;
+    }
+    
+    strcpy(buf, "player");
+    return buf;
 }

@@ -212,14 +212,39 @@ impl GameRenderer {
 
     /// Add monsters from C library (if available)
     fn add_monsters_from_c(&mut self) {
-        // Note: This uses unsafe FFI to call C code, but gracefully handles if
-        // the C library is not available by relying on weak linking/stub implementations
-        use crate::input::GameCommand;  // Just to show this would work
+        // Call C wrapper functions to get monsters from the game library
+        // These are safe wrappers around the C fmon linked list
         
-        // Attempt to read monsters from C library
-        // This will only work if nethack-sys is properly linked with the C library
-        // For now, we skip this to avoid linker errors
-        // TODO: Enable when C library integration is complete
+        let count = unsafe { nethack_sys::get_monster_count() };
+        
+        for i in 0..count {
+            let mut monster_data: nethack_sys::monster_data_t = unsafe { std::mem::zeroed() };
+            let result = unsafe { nethack_sys::get_monster_by_index(i, &mut monster_data) };
+            
+            if result != 0 {
+                let x = monster_data.x as f32;
+                let y = monster_data.y as f32;
+                
+                // Render as colored cube
+                let color = if monster_data.is_peaceful != 0 {
+                    [1.0, 1.0, 0.0, 1.0]  // Yellow for peaceful
+                } else {
+                    [1.0, 0.0, 0.0, 1.0]  // Red for hostile
+                };
+                
+                self.add_creature_cube(x, y, 0.3, color);
+                
+                // Debug logging (once per 10 monsters to avoid spam)
+                if i % 10 == 0 {
+                    tracing::debug!("Rendered monster {} at ({}, {}) - peaceful={}", 
+                                   i, monster_data.x, monster_data.y, monster_data.is_peaceful);
+                }
+            }
+        }
+        
+        if count > 0 {
+            tracing::info!("Rendered {} monsters from C library", count);
+        }
     }
 
     /// Add items from C library (if available)
