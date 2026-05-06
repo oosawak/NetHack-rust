@@ -669,7 +669,7 @@
             const scaleX = canvas.width / 80;   // ~10 pixels per tile width
             const scaleY = canvas.height / 24;  // ~25 pixels per tile height
             const offsetX = 0;
-            const offsetY = 0;
+            const offsetY = canvas.height / 2 - (12 * scaleY);  // Center vertically (12 is half of 24 tiles)
             
             // Debug: log first few triangles
             let trianglesDrawn = 0;
@@ -684,6 +684,7 @@
                 if (trianglesDrawn === 0) {
                     console.log('Raw vertex[0]=' + vertices[i0] + ' vertex[1]=' + vertices[i0 + 1]);
                     console.log('Scale: scaleX=' + scaleX + ' scaleY=' + scaleY);
+                    console.log('Offset: offsetX=' + offsetX + ' offsetY=' + offsetY);
                 }
 
                 const p0 = {
