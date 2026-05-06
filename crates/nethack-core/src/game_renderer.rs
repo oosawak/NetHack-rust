@@ -137,12 +137,11 @@ impl GameRenderer {
         let tile_size = 1.0;
         let floor_height = 0.0;
 
-        // Draw visible tiles around player (e.g., 10x10 area)
-        let view_radius = 5;
-        let min_x = (player_x - view_radius).max(0);
-        let max_x = (player_x + view_radius).min(width - 1);
-        let min_y = (player_y - view_radius).max(0);
-        let max_y = (player_y + view_radius).min(height - 1);
+        // Draw entire dungeon floor
+        let min_x = 0;
+        let max_x = width - 1;
+        let min_y = 0;
+        let max_y = height - 1;
 
         for tx in min_x..=max_x {
             for ty in min_y..=max_y {
