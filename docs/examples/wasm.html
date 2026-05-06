@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetHack WASM - Browser Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #444;
+            padding-bottom: 10px;
+        }
+
+        header h1 {
+            font-size: 28px;
+            color: #4a9eff;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0a0a0a;
+            border: 2px solid #444;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: #222;
+            border: 2px solid #444;
+            border-radius: 4px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .panel {
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 12px;
+            background: #1a1a1a;
+        }
+
+        .panel h3 {
+            color: #4a9eff;
+            font-size: 14px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .stat-label {
+            color: #888;
+        }
+
+        .stat-value {
+            color: #4a9eff;
+            font-weight: bold;
+        }
+
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        button {
+            padding: 8px 12px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #4a9eff;
+            cursor: pointer;
+            font-family: 'Monaco', monospace;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #444;
+            border-color: #4a9eff;
+        }
+
+        button:active {
+            background: #4a9eff;
+            color: #000;
+        }
+
+        .controls-info {
+            font-size: 11px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .status {
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #8a8;
+            font-weight: bold;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 18px;
+            color: #888;
+        }
+
+        .error {
+            color: #ff6b6b;
+            padding: 10px;
+            border-radius: 4px;
+            background: #3a2222;
+            border: 1px solid #aa5555;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🎮 NetHack WASM Browser Demo</h1>
+        <p>Arrow keys to move • 1-5 for camera modes • Q to quit</p>
+    </header>
+
+    <div class="container">
+        <div class="canvas-container">
+            <div id="canvas-wrapper">
+                <div class="loading">読み込み中...</div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="panel">
+                <h3>Game Status</h3>
+                <div class="stat">
+                    <span class="stat-label">Player X:</span>
+                    <span class="stat-value" id="player-x">—</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Player Y:</span>
+                    <span class="stat-value" id="player-y">—</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Dungeon:</span>
+                    <span class="stat-value" id="dungeon-size">—</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">FPS:</span>
+                    <span class="stat-value" id="fps">0</span>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Camera Mode</h3>
+                <div class="buttons">
+                    <button onclick="switchCamera(0)">TopDown</button>
+                    <button onclick="switchCamera(1)">Isometric</button>
+                    <button onclick="switchCamera(2)">FirstPerson</button>
+                    <button onclick="switchCamera(3)">ThirdPerson</button>
+                    <button onclick="switchCamera(4)">Cinematic</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Controls</h3>
+                <div class="controls-info">
+                    <strong>Arrow Keys:</strong><br>
+                    Move player ↑↓←→<br>
+                    <br>
+                    <strong>1-5 Keys:</strong><br>
+                    Switch camera view<br>
+                    <br>
+                    <strong>Q Key:</strong><br>
+                    Quit game
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Status</h3>
+                <div class="status" id="status">Initializing...</div>
+            </div>
+
+            <div class="panel" id="error-panel" style="display: none;">
+                <h3>Error</h3>
+                <div class="error" id="error-msg"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let game = null;
+        let canvas = null;
+        let ctx = null;
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let running = true;
+
+        // Import WASM module
+        async function init() {
+            try {
+                const status = document.getElementById('status');
+                status.textContent = 'Loading WASM module...';
+
+                // ESM import using dynamic import
+                const wasmModule = await import('../crates/nethack-wasm/pkg/nethack_wasm.js');
+                
+                status.textContent = 'Creating game instance...';
+                game = new wasmModule.Game();
+                game.init();
+
+                status.textContent = 'Setting up canvas...';
+                setupCanvas();
+
+                status.textContent = '✓ Ready!';
+                status.style.color = '#8f8';
+                
+                // Start game loop
+                gameLoop();
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showError(`Failed to initialize: ${error.message}`);
+                document.getElementById('status').textContent = 'Error: See panel below';
+            }
+        }
+
+        function setupCanvas() {
+            const wrapper = document.getElementById('canvas-wrapper');
+            wrapper.innerHTML = '';
+            
+            const width = 800;
+            const height = 600;
+            
+            canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.style.border = '2px solid #666';
+            canvas.style.backgroundColor = '#000';
+            
+            wrapper.appendChild(canvas);
+            ctx = canvas.getContext('2d');
+            
+            // Set up input
+            setupInput();
+        }
+
+        function setupInput() {
+            document.addEventListener('keydown', (e) => {
+                if (!game) return;
+                
+                switch (e.key.toLowerCase()) {
+                    case 'arrowup':
+                        game.move_player(0, -1);
+                        e.preventDefault();
+                        break;
+                    case 'arrowdown':
+                        game.move_player(0, 1);
+                        e.preventDefault();
+                        break;
+                    case 'arrowleft':
+                        game.move_player(-1, 0);
+                        e.preventDefault();
+                        break;
+                    case 'arrowright':
+                        game.move_player(1, 0);
+                        e.preventDefault();
+                        break;
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                        game.switch_camera(parseInt(e.key) - 1);
+                        break;
+                    case 'q':
+                        game.quit();
+                        running = false;
+                        break;
+                }
+            });
+        }
+
+        function gameLoop() {
+            if (!running) {
+                document.getElementById('status').textContent = 'Game Quit';
+                return;
+            }
+
+            // Update game
+            game.update();
+
+            // Render
+            render();
+
+            // Update stats
+            updateStats();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function render() {
+            if (!ctx || !game) return;
+
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, width, height);
+
+            // Get vertex data from game
+            const vertices = game.render();
+            const indices = game.render_indices();
+
+            // Render triangles
+            if (vertices.length > 0 && indices.length > 0) {
+                renderVertices(vertices, indices);
+            }
+
+            // Draw grid overlay (optional)
+            drawGridOverlay(width, height);
+        }
+
+        function renderVertices(vertices, indices) {
+            const scale = 20; // pixels per dungeon tile
+            const offsetX = canvas.width / 2;
+            const offsetY = canvas.height / 2;
+
+            // Draw triangles
+            for (let i = 0; i < indices.length; i += 3) {
+                const i0 = indices[i] * 7;
+                const i1 = indices[i + 1] * 7;
+                const i2 = indices[i + 2] * 7;
+
+                const p0 = {
+                    x: vertices[i0] * scale + offsetX,
+                    y: vertices[i0 + 1] * scale + offsetY,
+                    r: Math.round(vertices[i0 + 3] * 255),
+                    g: Math.round(vertices[i0 + 4] * 255),
+                    b: Math.round(vertices[i0 + 5] * 255),
+                    a: vertices[i0 + 6]
+                };
+
+                const p1 = {
+                    x: vertices[i1] * scale + offsetX,
+                    y: vertices[i1 + 1] * scale + offsetY,
+                    r: Math.round(vertices[i1 + 3] * 255),
+                    g: Math.round(vertices[i1 + 4] * 255),
+                    b: Math.round(vertices[i1 + 5] * 255),
+                    a: vertices[i1 + 6]
+                };
+
+                const p2 = {
+                    x: vertices[i2] * scale + offsetX,
+                    y: vertices[i2 + 1] * scale + offsetY,
+                    r: Math.round(vertices[i2 + 3] * 255),
+                    g: Math.round(vertices[i2 + 4] * 255),
+                    b: Math.round(vertices[i2 + 5] * 255),
+                    a: vertices[i2 + 6]
+                };
+
+                // Use average color
+                const color = `rgb(${(p0.r + p1.r + p2.r) / 3}, ${(p0.g + p1.g + p2.g) / 3}, ${(p0.b + p1.b + p2.b) / 3})`;
+                
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(p0.x, p0.y);
+                ctx.lineTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.closePath();
+                ctx.fill();
+
+                // Draw outline
+                ctx.strokeStyle = 'rgba(128,128,128,0.2)';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+            }
+        }
+
+        function drawGridOverlay(width, height) {
+            ctx.strokeStyle = 'rgba(100,100,100,0.1)';
+            ctx.lineWidth = 0.5;
+
+            const gridSize = 20;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Vertical lines
+            for (let x = centerX % gridSize; x < width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+
+            // Horizontal lines
+            for (let y = centerY % gridSize; y < height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+
+            // Center crosshair
+            ctx.strokeStyle = 'rgba(100,150,255,0.2)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(centerX - 20, centerY);
+            ctx.lineTo(centerX + 20, centerY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - 20);
+            ctx.lineTo(centerX, centerY + 20);
+            ctx.stroke();
+        }
+
+        function updateStats() {
+            if (!game) return;
+
+            document.getElementById('player-x').textContent = game.player_x();
+            document.getElementById('player-y').textContent = game.player_y();
+            document.getElementById('dungeon-size').textContent = 
+                `${game.width()} × ${game.height()}`;
+
+            // Calculate FPS
+            frameCount++;
+            const now = performance.now();
+            if (now - lastTime >= 1000) {
+                document.getElementById('fps').textContent = frameCount;
+                frameCount = 0;
+                lastTime = now;
+            }
+        }
+
+        function switchCamera(mode) {
+            if (!game) return;
+            const modes = ['TopDown', 'Isometric', 'FirstPerson', 'ThirdPerson', 'Cinematic'];
+            game.switch_camera(mode);
+            document.getElementById('status').textContent = `Camera: ${modes[mode]}`;
+        }
+
+        function showError(msg) {
+            const panel = document.getElementById('error-panel');
+            const msgEl = document.getElementById('error-msg');
+            msgEl.textContent = msg;
+            panel.style.display = 'block';
+        }
+
+        // Start initialization
+        init();
+    </script>
+</body>
+</html>
