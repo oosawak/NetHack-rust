@@ -670,51 +670,35 @@
         }
 
         function renderVertices(vertices, indices) {
-            // X: 0-80 (dungeon width), Y: 0-1 (normalized height)
-            const scaleX = canvas.width / 80;    // X: dungeon coords to pixels
-            const scaleY = canvas.height;        // Y: normalized (0-1) to pixels
+            // Vertex format: [x, y, z, r, g, b, a]
+            // x = dungeon tile X (0-79)
+            // y = height (0.0=floor, 0.1-0.9=player cube) -- IGNORED for top-down 2D
+            // z = dungeon tile Y (0-23) -- used as screen Y
+            const scaleX = canvas.width / 80;    // X: 0-79 dungeon → pixels
+            const scaleY = canvas.height / 24;   // Z: 0-23 dungeon → pixels
             
-            // Find min/max X/Y values and color ranges
+            // Track X and Z (dungeon Y) ranges
             let minX = Infinity, maxX = -Infinity;
-            let minY = Infinity, maxY = -Infinity;
-            let minR = Infinity, maxR = -Infinity;
-            let minG = Infinity, maxG = -Infinity;
-            let minB = Infinity, maxB = -Infinity;
+            let minZ = Infinity, maxZ = -Infinity;
             
             for (let i = 0; i < vertices.length; i += 7) {
                 minX = Math.min(minX, vertices[i]);
                 maxX = Math.max(maxX, vertices[i]);
-                minY = Math.min(minY, vertices[i + 1]);
-                maxY = Math.max(maxY, vertices[i + 1]);
-                minR = Math.min(minR, vertices[i + 3]);
-                maxR = Math.max(maxR, vertices[i + 3]);
-                minG = Math.min(minG, vertices[i + 4]);
-                maxG = Math.max(maxG, vertices[i + 4]);
-                minB = Math.min(minB, vertices[i + 5]);
-                maxB = Math.max(maxB, vertices[i + 5]);
+                minZ = Math.min(minZ, vertices[i + 2]);
+                maxZ = Math.max(maxZ, vertices[i + 2]);
             }
             
-            // Calculate center offset to keep geometry in view
-            const centerX = (minX + maxX) / 2;
-            const centerY = (minY + maxY) / 2;
-            const offsetX = (canvas.width / 2) - (centerX * scaleX);
-            const offsetY = (canvas.height / 2) - (centerY * scaleY);
-            
-            // Debug: log ranges and offsets
-            console.log('X range: ' + minX + ' to ' + maxX);
-            console.log('Y range: ' + minY + ' to ' + maxY);
-            console.log('RGB: R=' + minR + '-' + maxR + ' G=' + minG + '-' + maxG + ' B=' + minB + '-' + maxB);
-            console.log('Center: X=' + centerX.toFixed(1) + ' Y=' + centerY.toFixed(3) + ', Offset: X=' + offsetX.toFixed(0) + ' Y=' + offsetY.toFixed(0));
+            console.log('X range: ' + minX.toFixed(1) + ' to ' + maxX.toFixed(1) + ', Z range: ' + minZ.toFixed(1) + ' to ' + maxZ.toFixed(1));
 
-            // Draw triangles
+            // Draw triangles using X and Z for screen position
             for (let i = 0; i < indices.length; i += 3) {
                 const i0 = indices[i] * 7;
                 const i1 = indices[i + 1] * 7;
                 const i2 = indices[i + 2] * 7;
 
                 const p0 = {
-                    x: vertices[i0] * scaleX + offsetX,
-                    y: vertices[i0 + 1] * scaleY + offsetY,
+                    x: vertices[i0] * scaleX,
+                    y: vertices[i0 + 2] * scaleY,
                     r: Math.round(vertices[i0 + 3] * 255),
                     g: Math.round(vertices[i0 + 4] * 255),
                     b: Math.round(vertices[i0 + 5] * 255),
@@ -722,8 +706,8 @@
                 };
 
                 const p1 = {
-                    x: vertices[i1] * scaleX + offsetX,
-                    y: vertices[i1 + 1] * scaleY + offsetY,
+                    x: vertices[i1] * scaleX,
+                    y: vertices[i1 + 2] * scaleY,
                     r: Math.round(vertices[i1 + 3] * 255),
                     g: Math.round(vertices[i1 + 4] * 255),
                     b: Math.round(vertices[i1 + 5] * 255),
@@ -731,8 +715,8 @@
                 };
 
                 const p2 = {
-                    x: vertices[i2] * scaleX + offsetX,
-                    y: vertices[i2 + 1] * scaleY + offsetY,
+                    x: vertices[i2] * scaleX,
+                    y: vertices[i2 + 2] * scaleY,
                     r: Math.round(vertices[i2 + 3] * 255),
                     g: Math.round(vertices[i2 + 4] * 255),
                     b: Math.round(vertices[i2 + 5] * 255),
