@@ -7,7 +7,7 @@
 //! Game logic is handled entirely in Rust via nethack-core.
 
 use wasm_bindgen::prelude::*;
-use nethack_core::world::{World3D, Entity};
+use nethack_core::world::World3D;
 use nethack_core::camera::{Camera3D, ViewMode};
 use nethack_core::game_renderer::GameRenderer;
 use glam::Vec3;
@@ -58,16 +58,14 @@ impl Game {
         }
     }
 
-    /// Initialize the game (move player to starting position)
+    /// Initialize the game (player already placed by dungeon generation)
     pub fn init(&mut self) {
-        // Set player position via entity update
-        if let Some(player) = self.world.entities.iter_mut().find(|e| e.glyph == '@') {
-            player.position = Vec3::new(40.0, 12.0, 0.0);
-        }
-        
         #[cfg(target_arch = "wasm32")]
         {
-            web_sys::console::log_1(&"Game initialized: player at (40, 12)".into());
+            let p = self.world.player();
+            web_sys::console::log_1(
+                &format!("Game initialized: player at ({}, {})", p.position.x, p.position.z).into()
+            );
         }
     }
 
@@ -93,9 +91,10 @@ impl Game {
         self.world.level.height as i32
     }
 
-    /// Move player in a direction (dx, dy)
+    /// Move player in a direction (dx=left/right, dy=up/down on screen)
     pub fn move_player(&mut self, dx: i32, dy: i32) {
-        self.world.move_player(dx as f32, dy as f32, 0.0);
+        // dx → dungeon X axis, dy → dungeon Z axis (screen Y)
+        self.world.move_player(dx as f32, 0.0, dy as f32);
     }
 
     /// Execute command character (e.g., 'k' for kick, 's' for search)

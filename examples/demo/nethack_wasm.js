@@ -46,7 +46,7 @@ export class Game {
         return ret >>> 0;
     }
     /**
-     * Initialize the game (move player to starting position)
+     * Initialize the game (player already placed by dungeon generation)
      */
     init() {
         wasm.game_init(this.__wbg_ptr);
@@ -60,7 +60,7 @@ export class Game {
         return ret !== 0;
     }
     /**
-     * Move player in a direction (dx, dy)
+     * Move player in a direction (dx=left/right, dy=up/down on screen)
      * @param {number} dx
      * @param {number} dy
      */
