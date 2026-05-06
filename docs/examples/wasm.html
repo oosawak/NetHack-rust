@@ -298,63 +298,51 @@
                 <div class="status" id="status">Initializing...</div>
             </div>
 
-            <div class="collapsible-panel">
-                <div class="collapsible-header" onclick="toggleCollapsible(this)">
-                    <h3>Game Status</h3>
-                    <span class="collapse-icon">▼</span>
+            <!-- Game Status Panel -->
+            <div class="panel">
+                <h3>Game Status</h3>
+                <div class="stat">
+                    <span class="stat-label">Player X:</span>
+                    <span class="stat-value" id="player-x">—</span>
                 </div>
-                <div class="collapsible-content">
-                    <div class="stat">
-                        <span class="stat-label">Player X:</span>
-                        <span class="stat-value" id="player-x">—</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-label">Player Y:</span>
-                        <span class="stat-value" id="player-y">—</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-label">Dungeon:</span>
-                        <span class="stat-value" id="dungeon-size">—</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-label">FPS:</span>
-                        <span class="stat-value" id="fps">0</span>
-                    </div>
+                <div class="stat">
+                    <span class="stat-label">Player Y:</span>
+                    <span class="stat-value" id="player-y">—</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Dungeon:</span>
+                    <span class="stat-value" id="dungeon-size">—</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">FPS:</span>
+                    <span class="stat-value" id="fps">0</span>
                 </div>
             </div>
 
-            <div class="collapsible-panel">
-                <div class="collapsible-header" onclick="toggleCollapsible(this)">
-                    <h3>Camera Mode</h3>
-                    <span class="collapse-icon">▼</span>
-                </div>
-                <div class="collapsible-content">
-                    <div class="buttons">
-                        <button onclick="switchCamera(0)">TopDown</button>
-                        <button onclick="switchCamera(1)">Isometric</button>
-                        <button onclick="switchCamera(2)">FirstPerson</button>
-                        <button onclick="switchCamera(3)">ThirdPerson</button>
-                        <button onclick="switchCamera(4)">Cinematic</button>
-                    </div>
+            <!-- Camera Mode Panel -->
+            <div class="panel">
+                <h3>Camera Mode</h3>
+                <div class="buttons">
+                    <button onclick="switchCamera(0)">TopDown</button>
+                    <button onclick="switchCamera(1)">Isometric</button>
+                    <button onclick="switchCamera(2)">FirstPerson</button>
+                    <button onclick="switchCamera(3)">ThirdPerson</button>
+                    <button onclick="switchCamera(4)">Cinematic</button>
                 </div>
             </div>
 
-            <div class="collapsible-panel">
-                <div class="collapsible-header" onclick="toggleCollapsible(this)">
-                    <h3>Controls</h3>
-                    <span class="collapse-icon">▼</span>
-                </div>
-                <div class="collapsible-content">
-                    <div class="controls-info">
-                        <strong>Arrow Keys:</strong><br>
-                        Move player ↑↓←→<br>
-                        <br>
-                        <strong>1-5 Keys:</strong><br>
-                        Switch camera view<br>
-                        <br>
-                        <strong>Q Key:</strong><br>
-                        Quit game
-                    </div>
+            <!-- Controls Panel -->
+            <div class="panel">
+                <h3>Controls</h3>
+                <div class="controls-info">
+                    <strong>Arrow Keys:</strong><br>
+                    Move player ↑↓←→<br>
+                    <br>
+                    <strong>1-5 Keys:</strong><br>
+                    Switch camera view<br>
+                    <br>
+                    <strong>Q Key:</strong><br>
+                    Quit game
                 </div>
             </div>
         </div>
