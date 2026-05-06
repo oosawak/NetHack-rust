@@ -275,6 +275,17 @@
             </div>
         </div>
         
+        <!-- Legend -->
+        <div style="background: #111; border: 2px solid #444; padding: 8px 12px; border-radius: 4px; width: 100%; font-size: 12px; font-family: monospace; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+            <strong style="color: #aaa;">凡例:</strong>
+            <span><span style="display:inline-block;width:14px;height:14px;background:#ccc;vertical-align:middle;margin-right:4px;border:1px solid #888;"></span><span style="color:#ccc">壁</span></span>
+            <span><span style="display:inline-block;width:14px;height:14px;background:#73512e;vertical-align:middle;margin-right:4px;"></span><span style="color:#ccc">床（部屋）</span></span>
+            <span><span style="display:inline-block;width:14px;height:14px;background:#4d371e;vertical-align:middle;margin-right:4px;"></span><span style="color:#ccc">廊下</span></span>
+            <span><span style="display:inline-block;width:14px;height:14px;background:#33cc33;vertical-align:middle;margin-right:4px;"></span><span style="color:#ccc">階段（次の階）</span></span>
+            <span><span style="display:inline-block;width:14px;height:14px;background:#ffff00;vertical-align:middle;margin-right:4px;"></span><span style="color:#ccc">プレイヤー（@）</span></span>
+            <span><span style="display:inline-block;width:14px;height:14px;background:#000;vertical-align:middle;margin-right:4px;border:1px solid #444;"></span><span style="color:#ccc">空間（何もない）</span></span>
+        </div>
+
         <!-- Debug Panel - Always visible below canvas -->
         <div id="debug-panel" style="background: #1a1a1a; border: 2px solid #444; padding: 10px; font-size: 11px; color: #888; font-family: monospace; max-height: 250px; overflow-y: auto; border-radius: 4px; width: 100%;">
             <strong>Debug Log:</strong>
@@ -393,8 +404,8 @@
         // Build version — updated on every push
         const BUILD_INFO = {
             date: "2026-05-06",
-            version: "v0.6",
-            changes: "Corridors now open walls to create doorways between rooms"
+            version: "v0.7",
+            changes: "Fix corridor walls + add color legend"
         };
 
         // Debug logging to screen

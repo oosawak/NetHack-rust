@@ -104,25 +104,31 @@ impl Level {
             let cx2 = x2 + w2 / 2;
             let cy2 = y2 + h2 / 2;
 
-            // Horizontal segment
-            let (sx, ex) = if cx1 <= cx2 { (cx1, cx2) } else { (cx2, cx1) };
-            for x in sx..=ex {
+            // Open exactly one wall tile on room1 (horizontal exit toward room2)
+            let door1_x: i32 = if cx2 >= cx1 { x1 + w1 - 1 } else { x1 };
+            self.tiles[cy1 as usize][door1_x as usize] = Tile::Floor;
+
+            // Open exactly one wall tile on room2 (vertical entry from cy1 direction)
+            let door2_y: i32 = if cy2 >= cy1 { y2 } else { y2 + h2 - 1 };
+            self.tiles[door2_y as usize][cx2 as usize] = Tile::Floor;
+
+            // Draw horizontal corridor through empty space only (from door1 to cx2 column)
+            let h_start: i32 = if cx2 >= cx1 { door1_x + 1 } else { door1_x - 1 };
+            let (hsx, hex) = if h_start <= cx2 { (h_start, cx2) } else { (cx2, h_start) };
+            for x in hsx..=hex {
                 let tile = &mut self.tiles[cy1 as usize][x as usize];
-                match *tile {
-                    Tile::Empty => *tile = Tile::Corridor,
-                    // Wall adjacent to room entrance → open as floor (doorway)
-                    Tile::Wall  => *tile = Tile::Floor,
-                    _ => {}
+                if *tile == Tile::Empty {
+                    *tile = Tile::Corridor;
                 }
             }
-            // Vertical segment
-            let (sy, ey) = if cy1 <= cy2 { (cy1, cy2) } else { (cy2, cy1) };
-            for y in sy..=ey {
+
+            // Draw vertical corridor through empty space only (from cy1 to door2)
+            let v_end: i32 = if cy2 >= cy1 { door2_y - 1 } else { door2_y + 1 };
+            let (vsy, vey) = if cy1 <= v_end { (cy1, v_end) } else { (v_end, cy1) };
+            for y in vsy..=vey {
                 let tile = &mut self.tiles[y as usize][cx2 as usize];
-                match *tile {
-                    Tile::Empty => *tile = Tile::Corridor,
-                    Tile::Wall  => *tile = Tile::Floor,
-                    _ => {}
+                if *tile == Tile::Empty {
+                    *tile = Tile::Corridor;
                 }
             }
         }
