@@ -20,6 +20,8 @@
 // Include auto-generated bindings from build.rs
 include!(concat!(env!("OUT_DIR"), "/ffi.rs"));
 
+pub mod globals;
+
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 
