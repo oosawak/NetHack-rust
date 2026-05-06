@@ -654,6 +654,12 @@
                 ctx.fillText('Render error: ' + e.message, 20, 30);
             }
 
+            // Draw debug info on canvas
+            ctx.fillStyle = '#00ff00';
+            ctx.font = '12px monospace';
+            ctx.fillText('Canvas: ' + width + 'x' + height, 10, 20);
+            ctx.fillText('Scale: 10x (800/80) x 25x (600/24)', 10, 35);
+
             // Draw grid overlay (optional)
             drawGridOverlay(width, height);
         }
