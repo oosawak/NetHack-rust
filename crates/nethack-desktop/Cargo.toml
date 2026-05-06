@@ -10,6 +10,7 @@ name = "nethack"
 path = "src/main.rs"
 
 [dependencies]
+nethack-sys = { path = "../nethack-sys" }
 nethack-core = { path = "../nethack-core" }
 nethack-render = { path = "../nethack-render" }
 wgpu = { version = "0.20" }
