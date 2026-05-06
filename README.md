@@ -1,6 +1,6 @@
 # NetHack Rust + WASM + wgpu
 
-> **🚀 Active Development** | Phase 5.3 Complete, Phase 6 WASM Complete
+> **🚀 Active Development** | Phase 6.2 Complete: WASM Browser Demo Ready
 
 NetHack 5.0 ported to **FFI-First** approach using Rust + wgpu + WebGPU. Reuses ~250k lines of stable C game logic while implementing modern 3D graphics for Desktop, WASM, and Unity.
 
@@ -40,10 +40,10 @@ Phase 5: Dungeon Entity Rendering           ✅ DONE
   5.1: Fix Linker & Enable Monster Render   ✅ DONE (svl extern, static lib, wrappers)
   5.2: Item Rendering                       ✅ DONE (Cyan cubes, OBJ_FLOOR enumeration)
   5.3: Dungeon Features (Traps & Stairs)    ✅ DONE (Purple traps, green/blue stairs)
-Phase 6: WASM Build                         ✅ DONE
+Phase 6: WASM Build & Browser Demo          ✅ DONE
   6.1: WASM Target Setup                    ✅ DONE (wasm-bindgen, wasm-pack build)
-  6.2: WASM Game Bridge (Rust-only)         ✅ DONE (No C library, pure Rust logic)
-  6.3: JavaScript API (wasm-bindgen)        ✅ DONE (Game struct exported to JS)
+  6.2: Browser Example & Server             ✅ DONE (examples/wasm.html, run_server.sh)
+  6.3: Local Testing Environment            ✅ DONE (Auto-detecting HTTP server)
 Phase 7: Unity Plugin (cdylib)              📋 Planned
 ```
 
@@ -226,7 +226,29 @@ docs/
 
 ## 📝 Recent Changes
 
-### Phase 6: WASM Build Complete (Latest - Current)
+### Phase 6.2: Browser Example & Local Server (Latest - Current)
+- ✅ Created `examples/wasm.html` with full-featured Canvas demo
+  - Real-time vertex rendering from WASM game state
+  - FPS counter and player position tracking
+  - Camera mode switching buttons (1-5 keys support)
+  - Responsive sidebar with game stats
+- ✅ Implemented `examples/run_server.sh` auto-detecting HTTP server
+  - Works with Python 3, Python 2, Node.js, or Ruby
+  - Clear startup instructions with browser URL
+  - Verifies WASM binary before starting
+- ✅ Created `examples/verify.sh` for environment validation
+  - Checks WASM binary presence and size
+  - Validates JavaScript bindings
+  - Confirms all example files are in place
+- ✅ Created `examples/README.md` with user guide
+  - Quick start instructions
+  - Control mapping
+  - Camera mode descriptions
+  - Troubleshooting guide
+
+**Ready to test:** Users can now run `./examples/run_server.sh` and open `http://localhost:8000/examples/wasm.html` in their browser!
+
+### Phase 6: WASM Build Complete
 - ✅ Setup wasm32-unknown-unknown target with wasm-pack
 - ✅ Created nethack-wasm crate with wasm-bindgen API
 - ✅ Conditional compilation: WASM uses Rust-only logic (no C library)

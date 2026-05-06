@@ -13,11 +13,15 @@ echo "========================================="
 echo ""
 
 # Check if WASM was built
-if [ ! -f "$PROJECT_ROOT/crates/nethack-wasm/pkg/nethack_wasm.wasm" ]; then
-    echo "❌ WASM binary not found!"
+if [ ! -f "$PROJECT_ROOT/crates/nethack-wasm/pkg/nethack_wasm_bg.wasm" ]; then
+    echo "❌ WASM binary not found at:"
+    echo "   $PROJECT_ROOT/crates/nethack-wasm/pkg/nethack_wasm_bg.wasm"
+    echo ""
     echo "   Please build WASM first:"
     echo "   $ cd $PROJECT_ROOT"
     echo "   $ wasm-pack build crates/nethack-wasm --target web --release"
+    echo ""
+    echo "   Then run this script again."
     exit 1
 fi
 
@@ -26,20 +30,26 @@ echo ""
 
 # Determine which server to use
 if command -v python3 &> /dev/null; then
-    echo "🌐 Starting Python 3 HTTP server..."
+    echo "🌐 Starting Python 3 HTTP server on port 8000..."
     echo ""
-    echo "📍 Open your browser and navigate to:"
+    echo "📍 Open your browser:"
     echo "   http://localhost:8000/examples/wasm.html"
+    echo ""
+    echo "📁 Project files will be served from:"
+    echo "   $PROJECT_ROOT"
     echo ""
     echo "Press Ctrl+C to stop the server."
     echo ""
     cd "$PROJECT_ROOT"
     python3 -m http.server 8000
 elif command -v python &> /dev/null; then
-    echo "🌐 Starting Python 2 HTTP server..."
+    echo "🌐 Starting Python 2 HTTP server on port 8000..."
     echo ""
-    echo "📍 Open your browser and navigate to:"
+    echo "📍 Open your browser:"
     echo "   http://localhost:8000/examples/wasm.html"
+    echo ""
+    echo "📁 Project files will be served from:"
+    echo "   $PROJECT_ROOT"
     echo ""
     echo "Press Ctrl+C to stop the server."
     echo ""
@@ -51,8 +61,11 @@ elif command -v node &> /dev/null; then
     # Check if http-server is installed globally
     if command -v http-server &> /dev/null; then
         echo ""
-        echo "📍 Open your browser and navigate to:"
+        echo "📍 Open your browser:"
         echo "   http://localhost:8080/examples/wasm.html"
+        echo ""
+        echo "📁 Project files will be served from:"
+        echo "   $PROJECT_ROOT"
         echo ""
         echo "Press Ctrl+C to stop the server."
         echo ""
@@ -60,17 +73,22 @@ elif command -v node &> /dev/null; then
         http-server -p 8080
     else
         echo "⚠️  http-server not installed globally"
-        echo "   Install with: npm install -g http-server"
         echo ""
-        echo "   Or use Python:"
-        echo "   $ python3 -m http.server 8000"
+        echo "Install with:"
+        echo "   npm install -g http-server"
+        echo ""
+        echo "Or use Python instead:"
+        echo "   python3 -m http.server 8000"
         exit 1
     fi
 elif command -v ruby &> /dev/null; then
-    echo "🌐 Starting Ruby HTTP server..."
+    echo "🌐 Starting Ruby HTTP server on port 8000..."
     echo ""
-    echo "📍 Open your browser and navigate to:"
+    echo "📍 Open your browser:"
     echo "   http://localhost:8000/examples/wasm.html"
+    echo ""
+    echo "📁 Project files will be served from:"
+    echo "   $PROJECT_ROOT"
     echo ""
     echo "Press Ctrl+C to stop the server."
     echo ""
@@ -80,10 +98,12 @@ else
     echo "❌ No HTTP server found!"
     echo ""
     echo "Please install one of:"
-    echo "  • Python 3: apt install python3 (or use system Python)"
-    echo "  • Node.js: apt install nodejs npm"
-    echo "  • Ruby: apt install ruby"
+    echo "  • Python 3 (recommended): Usually pre-installed"
+    echo "  • Node.js: apt install nodejs npm (if needed)"
+    echo "  • Ruby: apt install ruby (if needed)"
     echo ""
-    echo "Then run this script again."
+    echo "On most systems, you can just use Python:"
+    echo "   cd $PROJECT_ROOT"
+    echo "   python3 -m http.server 8000"
     exit 1
 fi
