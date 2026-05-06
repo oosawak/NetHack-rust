@@ -75,6 +75,26 @@
             flex-direction: column;
             gap: 15px;
             overflow-y: auto;
+            transition: width 0.3s ease, opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 50px;
+            opacity: 0.7;
+        }
+
+        .sidebar.collapsed .collapsible-panel {
+            display: none;
+        }
+
+        .sidebar.collapsed::before {
+            content: "⟫";
+            font-size: 24px;
+            color: #4a9eff;
+            cursor: pointer;
+            text-align: center;
+            width: 100%;
+            padding: 10px 0;
         }
 
         .panel {
@@ -228,7 +248,7 @@
 <body>
     <header>
         <h1>🎮 NetHack WASM Browser Demo</h1>
-        <p>Arrow keys to move • 1-5 for camera modes • Q to quit</p>
+        <p>Arrow keys to move • 1-5 for camera modes • Q to quit • Click ⟦ to hide sidebar</p>
     </header>
 
     <div class="container">
@@ -239,6 +259,10 @@
         </div>
 
         <div class="sidebar">
+            <div style="text-align: center; margin-bottom: 10px; cursor: pointer;" onclick="toggleSidebar()">
+                <span style="color: #4a9eff; font-size: 18px; font-weight: bold;">⟦ Collapse</span>
+            </div>
+
             <div class="collapsible-panel">
                 <div class="collapsible-header" onclick="toggleCollapsible(this)">
                     <h3>Game Status</h3>
@@ -334,6 +358,12 @@
             header.classList.toggle('collapsed');
         }
 
+        // Toggle sidebar collapse
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
         // Import WASM module
         async function init() {
             try {
@@ -344,7 +374,8 @@
                 const wasmModule = await import('./nethack_wasm.js');
                 
                 status.textContent = 'Creating game instance...';
-                game = new wasmModule.Game();
+                // Use create_game function from WASM module
+                game = wasmModule.create_game();
                 game.init();
 
                 status.textContent = 'Setting up canvas...';
