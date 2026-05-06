@@ -1,4 +1,4 @@
-use nethack_core::{GameBridge, GameRenderer, Camera3D, ViewMode};
+use nethack_core::{GameBridge, GameRenderer, Camera3D, ViewMode, InputManager, GameCommand, input::Key};
 use nethack_render::{WgpuRenderer, Vertex};
 use winit::application::ApplicationHandler;
 use winit::event_loop::EventLoop;
@@ -18,6 +18,35 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Convert winit KeyCode to our internal Key representation
+fn convert_keycode(key: KeyCode) -> Option<Key> {
+    match key {
+        KeyCode::ArrowUp => Some(Key::ArrowUp),
+        KeyCode::ArrowDown => Some(Key::ArrowDown),
+        KeyCode::ArrowLeft => Some(Key::ArrowLeft),
+        KeyCode::ArrowRight => Some(Key::ArrowRight),
+        KeyCode::Space => Some(Key::Space),
+        KeyCode::Escape => Some(Key::Escape),
+        KeyCode::Enter => Some(Key::Enter),
+        KeyCode::Digit1 => Some(Key::Digit(1)),
+        KeyCode::Digit2 => Some(Key::Digit(2)),
+        KeyCode::Digit3 => Some(Key::Digit(3)),
+        KeyCode::Digit4 => Some(Key::Digit(4)),
+        KeyCode::Digit5 => Some(Key::Digit(5)),
+        KeyCode::KeyA => Some(Key::Char('a')),
+        KeyCode::KeyB => Some(Key::Char('b')),
+        KeyCode::KeyC => Some(Key::Char('c')),
+        KeyCode::KeyI => Some(Key::Char('i')),
+        KeyCode::KeyL => Some(Key::Char('l')),
+        KeyCode::KeyO => Some(Key::Char('o')),
+        KeyCode::KeyQ => Some(Key::Char('q')),
+        KeyCode::KeyR => Some(Key::Char('r')),
+        KeyCode::KeyS => Some(Key::Char('s')),
+        KeyCode::KeyZ => Some(Key::Char('z')),
+        _ => None,
+    }
+}
+
 struct NetHackApp {
     window: Option<Arc<Window>>,
     game_bridge: Option<GameBridge>,
@@ -27,11 +56,14 @@ struct NetHackApp {
     vertex_buffer: Option<wgpu::Buffer>,
     device: Option<Arc<wgpu::Device>>,
     queue: Option<Arc<wgpu::Queue>>,
+    input_manager: InputManager,
     window_width: u32,
     window_height: u32,
     running: bool,
     frame_count: u32,
     current_view_mode: ViewMode,
+    player_x: i32,
+    player_y: i32,
 }
 
 impl NetHackApp {
@@ -45,11 +77,14 @@ impl NetHackApp {
             vertex_buffer: None,
             device: None,
             queue: None,
+            input_manager: InputManager::new(),
             window_width: 1280,
             window_height: 960,
             running: true,
             frame_count: 0,
             current_view_mode: ViewMode::Isometric,
+            player_x: 40,
+            player_y: 12,
         }
     }
 
@@ -133,14 +168,58 @@ impl NetHackApp {
     }
 
     fn update_game_state(&mut self) {
-        if let Some(game_renderer) = &mut self.game_renderer {
-            let player_x = 40;
-            let player_y = 12;
+        // Process queued commands
+        while let Some(cmd) = self.input_manager.next_command() {
+            self.execute_command(cmd);
+        }
 
-            game_renderer.update_from_game_state(player_x, player_y, 80, 24);
+        if let Some(game_renderer) = &mut self.game_renderer {
+            game_renderer.update_from_game_state(self.player_x, self.player_y, 80, 24);
 
             if let Some(camera) = &mut self.camera {
-                camera.follow(player_x as f32, 0.0, player_y as f32);
+                camera.follow(self.player_x as f32, 0.0, self.player_y as f32);
+            }
+        }
+    }
+
+    fn execute_command(&mut self, cmd: GameCommand) {
+        match cmd {
+            GameCommand::MoveUp => {
+                if self.player_y > 0 {
+                    self.player_y -= 1;
+                    tracing::debug!("Player moved to ({}, {})", self.player_x, self.player_y);
+                }
+            }
+            GameCommand::MoveDown => {
+                if self.player_y < 23 {
+                    self.player_y += 1;
+                    tracing::debug!("Player moved to ({}, {})", self.player_x, self.player_y);
+                }
+            }
+            GameCommand::MoveLeft => {
+                if self.player_x > 0 {
+                    self.player_x -= 1;
+                    tracing::debug!("Player moved to ({}, {})", self.player_x, self.player_y);
+                }
+            }
+            GameCommand::MoveRight => {
+                if self.player_x < 79 {
+                    self.player_x += 1;
+                    tracing::debug!("Player moved to ({}, {})", self.player_x, self.player_y);
+                }
+            }
+            GameCommand::Wait => {
+                tracing::debug!("Player waits");
+            }
+            GameCommand::Quit => {
+                tracing::info!("Quit");
+                self.running = false;
+            }
+            GameCommand::Inventory => {
+                tracing::info!("View inventory");
+            }
+            _ => {
+                tracing::debug!("Command: {:?}", cmd);
             }
         }
     }
@@ -175,23 +254,20 @@ impl NetHackApp {
         }
     }
 
-    fn handle_input(&mut self, key: KeyCode) {
-        match key {
+    fn handle_input(&mut self, keycode: KeyCode) {
+        // Handle view mode switching separately (immediate, not queued)
+        match keycode {
             KeyCode::Digit1 => self.switch_view_mode(ViewMode::TopDown),
             KeyCode::Digit2 => self.switch_view_mode(ViewMode::Isometric),
             KeyCode::Digit3 => self.switch_view_mode(ViewMode::FirstPerson),
             KeyCode::Digit4 => self.switch_view_mode(ViewMode::ThirdPerson),
             KeyCode::Digit5 => self.switch_view_mode(ViewMode::Cinematic),
-            KeyCode::ArrowUp => tracing::debug!("Move up"),
-            KeyCode::ArrowDown => tracing::debug!("Move down"),
-            KeyCode::ArrowLeft => tracing::debug!("Move left"),
-            KeyCode::ArrowRight => tracing::debug!("Move right"),
-            KeyCode::KeyV => tracing::info!("View toggle"),
-            KeyCode::KeyQ => {
-                tracing::info!("Quit");
-                self.running = false;
+            _ => {
+                // Convert winit KeyCode to our Key type and queue
+                if let Some(key) = convert_keycode(keycode) {
+                    self.input_manager.queue_command(key);
+                }
             }
-            _ => {}
         }
     }
 

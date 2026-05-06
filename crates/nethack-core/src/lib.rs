@@ -10,9 +10,11 @@ pub mod camera;
 pub mod world;
 pub mod game_bridge;
 pub mod game_renderer;
+pub mod input;
 
 pub use state::GameState;
 pub use camera::{Camera3D, ViewMode};
 pub use world::{World3D, Entity};
 pub use game_bridge::GameBridge;
 pub use game_renderer::{GameRenderer, RenderVertex};
+pub use input::{GameCommand, InputManager};
