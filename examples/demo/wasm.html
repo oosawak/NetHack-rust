@@ -288,9 +288,9 @@
         </div>
         
         <!-- Debug Panel - Always visible below canvas -->
-        <div id="debug-panel" style="background: #1a1a1a; border: 2px solid #444; padding: 10px; font-size: 11px; color: #888; font-family: monospace; max-height: 100px; overflow-y: auto; border-radius: 4px; width: 100%;">
+        <div id="debug-panel" style="background: #1a1a1a; border: 2px solid #444; padding: 10px; font-size: 11px; color: #888; font-family: monospace; max-height: 250px; overflow-y: auto; border-radius: 4px; width: 100%;">
             <strong>Debug Log:</strong>
-            <div id="debug-log" style="margin-top: 5px; max-height: 80px; overflow-y: auto;"></div>
+            <div id="debug-log" style="margin-top: 5px; max-height: 220px; overflow-y: auto;"></div>
         </div>
         
         <!-- Mobile Controls Panel -->
@@ -405,7 +405,7 @@
         // Debug logging to screen
         function addDebugLog(message) {
             debugLogs.push(message);
-            if (debugLogs.length > 3) debugLogs.shift();
+            if (debugLogs.length > 8) debugLogs.shift();
             updateDebugDisplay();
         }
 
@@ -742,11 +742,7 @@
                 ctx.lineTo(p2.x, p2.y);
                 ctx.closePath();
                 ctx.fill();
-
-                // Draw outline
-                ctx.strokeStyle = 'rgba(128,128,128,0.2)';
-                ctx.lineWidth = 0.5;
-                ctx.stroke();
+                // No stroke outline - avoids black seam lines between tiles
             }
             
             // Log last 2 triangles (should be player tile)
