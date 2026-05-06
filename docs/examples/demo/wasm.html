@@ -674,6 +674,12 @@
                 const i1 = indices[i + 1] * 7;
                 const i2 = indices[i + 2] * 7;
 
+                // Debug raw vertex values
+                if (trianglesDrawn === 0) {
+                    console.log('Raw vertex[0]=' + vertices[i0] + ' vertex[1]=' + vertices[i0 + 1]);
+                    console.log('Scale: scaleX=' + scaleX + ' scaleY=' + scaleY);
+                }
+
                 const p0 = {
                     x: vertices[i0] * scaleX + offsetX,
                     y: vertices[i0 + 1] * scaleY + offsetY,
