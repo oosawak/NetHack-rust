@@ -1,4 +1,4 @@
-use nethack_core::{GameBridge, GameRenderer};
+use nethack_core::{GameBridge, GameRenderer, Camera3D, ViewMode};
 use nethack_render::{WgpuRenderer, Vertex};
 use winit::application::ApplicationHandler;
 use winit::event_loop::EventLoop;
@@ -22,12 +22,16 @@ struct NetHackApp {
     window: Option<Arc<Window>>,
     game_bridge: Option<GameBridge>,
     game_renderer: Option<GameRenderer>,
+    camera: Option<Camera3D>,
     wgpu_renderer: Option<WgpuRenderer>,
     vertex_buffer: Option<wgpu::Buffer>,
     device: Option<Arc<wgpu::Device>>,
     queue: Option<Arc<wgpu::Queue>>,
+    window_width: u32,
+    window_height: u32,
     running: bool,
     frame_count: u32,
+    current_view_mode: ViewMode,
 }
 
 impl NetHackApp {
@@ -36,12 +40,16 @@ impl NetHackApp {
             window: None,
             game_bridge: None,
             game_renderer: None,
+            camera: None,
             wgpu_renderer: None,
             vertex_buffer: None,
             device: None,
             queue: None,
+            window_width: 1280,
+            window_height: 960,
             running: true,
             frame_count: 0,
+            current_view_mode: ViewMode::Isometric,
         }
     }
 
@@ -70,6 +78,9 @@ impl NetHackApp {
             ))?;
 
             let size = window.inner_size();
+            self.window_width = size.width;
+            self.window_height = size.height;
+
             let surface_config = surface
                 .get_default_config(&adapter, size.width, size.height)
                 .ok_or_else(|| anyhow::anyhow!("Surface not supported by adapter"))?;
@@ -87,7 +98,6 @@ impl NetHackApp {
             ))
             .map_err(|e| anyhow::anyhow!("Failed to create renderer: {}", e))?;
 
-            // Create initial vertex buffer (will be updated each frame)
             let initial_vertices: Vec<Vertex> = vec![];
             let vertex_buffer = if !initial_vertices.is_empty() {
                 device_arc.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -96,10 +106,9 @@ impl NetHackApp {
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 })
             } else {
-                // Create empty buffer that we'll update later
                 device_arc.create_buffer(&wgpu::BufferDescriptor {
                     label: Some("Vertex Buffer"),
-                    size: 65536, // 64KB buffer for vertex data
+                    size: 65536,
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     mapped_at_creation: false,
                 })
@@ -110,38 +119,29 @@ impl NetHackApp {
             self.device = Some(device_arc);
             self.queue = Some(queue_arc);
             self.game_renderer = Some(GameRenderer::new());
+            self.camera = Some(Camera3D::new(40.0, 0.0, 12.0, self.current_view_mode));
 
-            tracing::info!("Graphics initialized successfully");
+            tracing::info!("Graphics initialized ({}x{})", self.window_width, self.window_height);
         }
 
         Ok(())
     }
 
     fn init_game(&mut self) {
-        // NOTE: Full game initialization is deferred due to C linking issues
-        // For now, we use default player position and simple game state
         self.game_bridge = Some(GameBridge::new());
-        tracing::info!("Game state initialized (simplified mode)");
+        tracing::info!("Game state initialized");
     }
 
     fn update_game_state(&mut self) {
-        // Update game renderer with current game state
         if let Some(game_renderer) = &mut self.game_renderer {
-            // Use default player position (0, 0) for rendering
-            // In full implementation, this would read from C game state
-            let player_x = 40; // Center of 80-width dungeon
-            let player_y = 12; // Center of 24-height dungeon
+            let player_x = 40;
+            let player_y = 12;
 
-            // Update renderer vertices
-            game_renderer.update_from_game_state(
-                player_x,
-                player_y,
-                80, // dungeon width (standard NetHack)
-                24, // dungeon height
-            );
+            game_renderer.update_from_game_state(player_x, player_y, 80, 24);
 
-            tracing::debug!("Updated game state: player at ({}, {}), {} vertices", 
-                player_x, player_y, game_renderer.vertex_count());
+            if let Some(camera) = &mut self.camera {
+                camera.follow(player_x as f32, 0.0, player_y as f32);
+            }
         }
     }
 
@@ -151,30 +151,42 @@ impl NetHackApp {
             
             let vertices = game_renderer.vertices();
             if !vertices.is_empty() {
-                // Convert RenderVertex to Vertex (same structure with #[repr(C)])
                 let vertex_data: Vec<u8> = bytemuck::cast_slice(vertices).to_vec();
                 queue.write_buffer(vbuf, 0, &vertex_data);
             }
         }
     }
 
+    fn update_camera_uniform(&mut self) {
+        if let (Some(camera), Some(renderer)) = (&self.camera, &mut self.wgpu_renderer) {
+            let aspect = self.window_width as f32 / self.window_height as f32;
+            let view_proj = camera.view_projection(aspect);
+            renderer.update_camera(view_proj.to_cols_array_2d());
+
+            tracing::debug!("Camera: {:?}, aspect={:.2}", camera.mode, aspect);
+        }
+    }
+
+    fn switch_view_mode(&mut self, mode: ViewMode) {
+        self.current_view_mode = mode;
+        if let Some(camera) = &mut self.camera {
+            camera.switch_mode(mode);
+            tracing::info!("View mode: {:?}", mode);
+        }
+    }
+
     fn handle_input(&mut self, key: KeyCode) {
         match key {
-            KeyCode::ArrowUp => {
-                tracing::info!("Move up");
-            }
-            KeyCode::ArrowDown => {
-                tracing::info!("Move down");
-            }
-            KeyCode::ArrowLeft => {
-                tracing::info!("Move left");
-            }
-            KeyCode::ArrowRight => {
-                tracing::info!("Move right");
-            }
-            KeyCode::KeyV => {
-                tracing::info!("Switch view mode");
-            }
+            KeyCode::Digit1 => self.switch_view_mode(ViewMode::TopDown),
+            KeyCode::Digit2 => self.switch_view_mode(ViewMode::Isometric),
+            KeyCode::Digit3 => self.switch_view_mode(ViewMode::FirstPerson),
+            KeyCode::Digit4 => self.switch_view_mode(ViewMode::ThirdPerson),
+            KeyCode::Digit5 => self.switch_view_mode(ViewMode::Cinematic),
+            KeyCode::ArrowUp => tracing::debug!("Move up"),
+            KeyCode::ArrowDown => tracing::debug!("Move down"),
+            KeyCode::ArrowLeft => tracing::debug!("Move left"),
+            KeyCode::ArrowRight => tracing::debug!("Move right"),
+            KeyCode::KeyV => tracing::info!("View toggle"),
             KeyCode::KeyQ => {
                 tracing::info!("Quit");
                 self.running = false;
@@ -201,25 +213,21 @@ impl ApplicationHandler for NetHackApp {
             let window = event_loop
                 .create_window(
                     Window::default_attributes()
-                        .with_title("NetHack - FFI First Rust/WASM")
+                        .with_title("NetHack - FFI First Rust/WASM (Phase 4.3 Camera)")
                         .with_inner_size(winit::dpi::LogicalSize::new(1280.0, 960.0)),
                 )
                 .unwrap();
             
-            tracing::info!("Window created: 1280x960");
             self.window = Some(Arc::new(window));
             
-            // Initialize graphics
             if let Err(e) = self.init_graphics() {
-                tracing::error!("Failed to initialize graphics: {}", e);
+                tracing::error!("Graphics init failed: {}", e);
             }
 
-            // Initialize the game
             self.init_game();
-
-            // Initial game state update
             self.update_game_state();
             self.update_vertex_buffer();
+            self.update_camera_uniform();
         }
     }
 
@@ -238,11 +246,10 @@ impl ApplicationHandler for NetHackApp {
                 }
             }
             WindowEvent::RedrawRequested => {
-                // Update game state each frame
                 self.update_game_state();
                 self.update_vertex_buffer();
+                self.update_camera_uniform();
 
-                // Render frame
                 if let Err(e) = self.render() {
                     tracing::error!("Render error: {}", e);
                 }
@@ -252,12 +259,11 @@ impl ApplicationHandler for NetHackApp {
                 }
 
                 self.frame_count += 1;
-                if self.frame_count % 60 == 0 {
-                    tracing::info!("Frame: {}", self.frame_count);
+                if self.frame_count % 300 == 0 {
+                    tracing::info!("Frame {} | View: {:?}", self.frame_count, self.current_view_mode);
                 }
             }
             WindowEvent::CloseRequested => {
-                tracing::info!("Close requested");
                 event_loop.exit();
             }
             _ => {}
@@ -265,7 +271,6 @@ impl ApplicationHandler for NetHackApp {
     }
 
     fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
-        // Game loop timing - request redraw to keep rendering
         if self.running {
             if let Some(window) = &self.window {
                 window.request_redraw();
