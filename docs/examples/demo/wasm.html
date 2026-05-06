@@ -669,7 +669,17 @@
             const scaleX = canvas.width / 80;   // ~10 pixels per tile width
             const scaleY = canvas.height / 24;  // ~25 pixels per tile height
             const offsetX = 0;
-            const offsetY = canvas.height / 2 - (12 * scaleY);  // Center vertically (12 is half of 24 tiles)
+            const offsetY = 50;  // Simple offset for now
+            
+            // Find min/max Y values
+            let minY = Infinity, maxY = -Infinity;
+            for (let i = 0; i < vertices.length; i += 7) {
+                minY = Math.min(minY, vertices[i + 1]);
+                maxY = Math.max(maxY, vertices[i + 1]);
+            }
+            
+            // Debug: log Y range
+            console.log('Y range: min=' + minY + ' max=' + maxY);
             
             // Debug: log first few triangles
             let trianglesDrawn = 0;
@@ -679,13 +689,6 @@
                 const i0 = indices[i] * 7;
                 const i1 = indices[i + 1] * 7;
                 const i2 = indices[i + 2] * 7;
-
-                // Debug raw vertex values
-                if (trianglesDrawn === 0) {
-                    console.log('Raw vertex[0]=' + vertices[i0] + ' vertex[1]=' + vertices[i0 + 1]);
-                    console.log('Scale: scaleX=' + scaleX + ' scaleY=' + scaleY);
-                    console.log('Offset: offsetX=' + offsetX + ' offsetY=' + offsetY);
-                }
 
                 const p0 = {
                     x: vertices[i0] * scaleX + offsetX,
@@ -719,11 +722,6 @@
                 const avgG = (p0.g + p1.g + p2.g) / 3;
                 const avgB = (p0.b + p1.b + p2.b) / 3;
                 const color = `rgb(${Math.round(avgR)}, ${Math.round(avgG)}, ${Math.round(avgB)})`;
-                
-                // Debug first triangle
-                if (trianglesDrawn === 0) {
-                    console.log('Triangle 0: p0=(' + Math.round(p0.x) + ',' + Math.round(p0.y) + ') color=' + color);
-                }
                 
                 ctx.fillStyle = color;
                 ctx.beginPath();
