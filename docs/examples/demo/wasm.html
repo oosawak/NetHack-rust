@@ -662,6 +662,9 @@
             const scale = 20; // pixels per dungeon tile
             const offsetX = canvas.width / 2;
             const offsetY = canvas.height / 2;
+            
+            // Debug: log first few triangles
+            let trianglesDrawn = 0;
 
             // Draw triangles
             for (let i = 0; i < indices.length; i += 3) {
@@ -697,7 +700,15 @@
                 };
 
                 // Use average color
-                const color = `rgb(${(p0.r + p1.r + p2.r) / 3}, ${(p0.g + p1.g + p2.g) / 3}, ${(p0.b + p1.b + p2.b) / 3})`;
+                const avgR = (p0.r + p1.r + p2.r) / 3;
+                const avgG = (p0.g + p1.g + p2.g) / 3;
+                const avgB = (p0.b + p1.b + p2.b) / 3;
+                const color = `rgb(${Math.round(avgR)}, ${Math.round(avgG)}, ${Math.round(avgB)})`;
+                
+                // Debug first triangle
+                if (trianglesDrawn === 0) {
+                    console.log('Triangle 0: p0=(' + Math.round(p0.x) + ',' + Math.round(p0.y) + ') color=' + color);
+                }
                 
                 ctx.fillStyle = color;
                 ctx.beginPath();
