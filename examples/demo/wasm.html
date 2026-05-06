@@ -447,10 +447,12 @@
                     break;
                 case 'cam0':
                 case 'cam1':
+                case 'cam0':
+                case 'cam1':
                 case 'cam2':
                 case 'cam3':
                 case 'cam4':
-                    const camNum = parseInt(action[3]);
+                    const camNum = parseInt(action.substring(3));
                     console.log('Switching to camera:', camNum);
                     game.switch_camera(camNum);
                     addDebugLog(`Camera: ${camNum}`);
