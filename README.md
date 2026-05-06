@@ -1,6 +1,6 @@
 # NetHack Rust + WASM + wgpu
 
-> **🚀 Active Development** | Phase 4.4 Complete, Phase 5 Infrastructure In Place
+> **🚀 Active Development** | Phase 5.1 Complete, Phase 5.2 In Progress
 
 NetHack 5.0 ported to **FFI-First** approach using Rust + wgpu + WebGPU. Reuses ~250k lines of stable C game logic while implementing modern 3D graphics for Desktop, WASM, and Unity.
 
@@ -30,14 +30,15 @@ Phase 0: Workspace Setup                    ✅ DONE
 Phase 1: FFI Bindings (nethack-sys)         ✅ DONE (139 C files linked)
 Phase 2: Game Bridge                        ✅ DONE (Player state, Game logic)
 Phase 3: C Globals & Game State             ✅ DONE (GameBridge, state mgmt)
-Phase 4: Desktop Graphics Pipeline          🔄 IN PROGRESS
+Phase 4: Desktop Graphics Pipeline          ✅ DONE
   4.1: wgpu Rendering                       ✅ DONE (GPU setup, shaders, render pass)
   4.2: Game State → Vertices                ✅ DONE (Player cube, dungeon floor)
   4.3: Camera Integration (5 views)         ✅ DONE (TopDown, Isometric, etc.)
   4.4: Input System                         ✅ DONE (Arrow keys → movement)
 Phase 5: Monster & Item Rendering           🔄 IN PROGRESS
   5.0: Infrastructure                       ✅ DONE (FFI wrappers, renderer stubs)
-  5.1: Enable Monster Rendering             📋 NEXT
+  5.1: Fix Linker & Enable Monster Render   ✅ DONE (svl extern, static lib, wrappers)
+  5.2: Item Rendering                       🔄 IN PROGRESS
 Phase 6: WASM Build                         📋 Planned
 Phase 7: Unity Plugin (cdylib)              📋 Planned
 ```
@@ -46,11 +47,11 @@ Phase 7: Unity Plugin (cdylib)              📋 Planned
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| **nethack-sys** | ✅ Complete | FFI bindings, C wrapper functions |
-| **nethack-core** | ✅ Complete | Camera (5 modes), Input, GameRenderer |
+| **nethack-sys** | ✅ Complete | FFI bindings, C wrapper functions, libnhmain integration |
+| **nethack-core** | ✅ Complete | Camera (5 modes), Input, GameRenderer, Monster render enabled |
 | **nethack-render** | ✅ Complete | wgpu pipeline, WGSL shaders |
-| **nethack-desktop** | 🔄 Active | winit + wgpu, input handling, rendering |
-| **Tests** | ✅ 17 Passing | camera, input, game_renderer, world |
+| **nethack-desktop** | 🔄 Active | winit + wgpu, input handling, monster/item rendering |
+| **Tests** | ✅ 17 Passing | camera, input, game_renderer, world, all passing release/debug |
 
 ---
 
@@ -124,8 +125,8 @@ nethack-desktop (Desktop: winit event loop)
 
 - **Player:** Yellow cube at (ux, uy)
 - **Dungeon:** Gray tiles (10×10 visible radius)
-- **Monsters:** Red cubes (ready for C library integration)
-- **Items:** Cyan cubes (infrastructure in place)
+- **Monsters:** Red (hostile) / Yellow (peaceful) cubes, auto-rendered from C library
+- **Items:** Cyan cubes (infrastructure in place, stub implementation)
 
 ---
 
@@ -159,10 +160,11 @@ docs/
 - Game state updates each frame
 - Proper window management with winit
 - Input → GameCommand → execution flow
+- Monster rendering from C library (red/yellow colored cubes)
+- Monster enumeration via safe FFI wrapper (get_monster_count/by_index)
 
 🔄 **In Progress:**
-- Monster rendering from C library monsters
-- Item placement and rendering
+- Item rendering and placement
 - Expanded dungeon features
 
 📋 **Planned:**
@@ -221,17 +223,20 @@ cargo test -- --nocapture
 
 ## 📝 Recent Changes
 
-**Phase 4.4 - Input System:**
-- Implemented InputManager for command queueing
-- Arrow keys now move player
-- GameCommand enum covers 13+ NetHack actions
-- Input flow: KeyCode → Key → GameCommand → execute_command()
+**Phase 5.1 - Fix Linker Error & Enable Monster Rendering:**
+- Fixed undefined symbol `svl` linker error by declaring `extern struct instance_globals_saved_l svl`
+- Modified wrapper.c to directly access `svl.level.monlist` in get_monster_count/by_index
+- Implemented static library archive creation in build.rs for proper object file linking
+- Compiled sys/libnh/libnhmain.c with LIBNH flags to resolve symbol conflicts
+- Added wrapper functions for chdirx and whoami platform compatibility
+- All 17 tests passing in both debug and release modes
+- Release binary compiles to 14MB executable
 
 **Phase 5.0 - Monster Infrastructure:**
 - Created C wrapper functions for monster enumeration
 - Extended GameRenderer with rendering methods
 - Prepared stubs for C library integration
-- All infrastructure ready for monster rendering
+- Monster rendering code already enabled in game_renderer.rs
 
 ---
 
@@ -240,7 +245,8 @@ cargo test -- --nocapture
 - All work on `master` branch with regular commits
 - Tests must pass before committing
 - Build output is clean (warnings are cosmetic)
-- Desktop binary is ~160MB (includes all dependencies)
+- Release binary is 14MB, Debug binary is 160MB (includes all dependencies)
+- Monster rendering is enabled - all monsters in game will be rendered as colored cubes
 
 ---
 
