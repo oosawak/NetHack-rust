@@ -498,12 +498,27 @@
             ctx.fillRect(0, 0, width, height);
 
             // Get vertex data from game
-            const vertices = game.render();
-            const indices = game.render_indices();
+            try {
+                const vertices = game.render();
+                const indices = game.render_indices();
+                
+                // Debug: Log data received
+                console.log('Vertices:', vertices ? vertices.length : 'null', 'Indices:', indices ? indices.length : 'null');
 
-            // Render triangles
-            if (vertices.length > 0 && indices.length > 0) {
-                renderVertices(vertices, indices);
+                // Render triangles
+                if (vertices && vertices.length > 0 && indices && indices.length > 0) {
+                    renderVertices(vertices, indices);
+                } else {
+                    // Draw placeholder message
+                    ctx.fillStyle = '#666';
+                    ctx.font = '16px monospace';
+                    ctx.fillText('No vertices to render', 20, 30);
+                }
+            } catch (e) {
+                console.error('Render error:', e);
+                ctx.fillStyle = '#f00';
+                ctx.font = '16px monospace';
+                ctx.fillText('Render error: ' + e.message, 20, 30);
             }
 
             // Draw grid overlay (optional)
