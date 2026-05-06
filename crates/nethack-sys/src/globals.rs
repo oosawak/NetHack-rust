@@ -3,11 +3,6 @@
 //! This module provides safe Rust wrappers for accessing C global variables,
 //! ensuring thread safety and proper lifetimes.
 
-// Import the auto-generated FFI symbols
-// (These are defined in the FFI include! at the crate level)
-use crate::dlevel;
-use crate::dunlevs;
-
 /// Safe wrapper for player position and attributes
 #[derive(Debug, Clone, Copy)]
 pub struct PlayerInfo {
@@ -96,14 +91,14 @@ pub fn get_maxhp() -> i32 {
 /// Get dungeon level from C global `dlevel`
 pub fn get_current_level() -> i32 {
     unsafe {
-        dlevel
+        crate::get_dlevel()
     }
 }
 
 /// Get total dungeon levels from C global `dunlevs`
 pub fn get_total_levels() -> i32 {
     unsafe {
-        dunlevs
+        crate::get_dunlevs()
     }
 }
 

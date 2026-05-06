@@ -53,6 +53,8 @@ fn main() {
         .allowlist_function("get_player_hp")
         .allowlist_function("get_player_maxhp")
         .allowlist_function("get_player_state")
+        .allowlist_function("get_dlevel")
+        .allowlist_function("get_dunlevs")
         // Variables
         .allowlist_var("dlevel")
         .allowlist_var("dunlevs")

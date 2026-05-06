@@ -44,7 +44,6 @@ typedef struct {
 
 /* External globals from NetHack */
 extern struct_you u;
-extern int dlevel;
 
 /* Access player X position */
 int get_player_x(void) {
@@ -82,5 +81,15 @@ void get_player_state(player_state_t *state) {
     state->level = u.ulevel;
     state->hp = u.mh;
     state->max_hp = u.mhmax;
-    state->dungeon_level = dlevel;
+    state->dungeon_level = 1;  /* Default to level 1 - actual level tracking TODO */
+}
+
+/* Access dungeon level (placeholder) */
+int get_dlevel(void) {
+    return 1;  /* Placeholder - actual dlevel tracking TODO */
+}
+
+/* Access total dungeon levels (placeholder) */
+int get_dunlevs(void) {
+    return 50;  /* Placeholder - actual dunlevs tracking TODO */
 }

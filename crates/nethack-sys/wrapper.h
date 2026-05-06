@@ -62,3 +62,7 @@ int get_player_maxhp(void);
 /* Bulk player state accessor */
 void get_player_state(player_state_t *state);
 
+/* Dungeon level accessors */
+int get_dlevel(void);
+int get_dunlevs(void);
+
