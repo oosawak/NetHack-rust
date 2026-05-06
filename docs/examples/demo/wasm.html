@@ -690,6 +690,9 @@
             
             console.log('X range: ' + minX.toFixed(1) + ' to ' + maxX.toFixed(1) + ', Z range: ' + minZ.toFixed(1) + ' to ' + maxZ.toFixed(1));
 
+            const totalTris = indices.length / 3;
+            let yellowCount = 0;
+
             // Draw triangles using X and Z for screen position
             for (let i = 0; i < indices.length; i += 3) {
                 const i0 = indices[i] * 7;
@@ -729,6 +732,9 @@
                 const avgB = (p0.b + p1.b + p2.b) / 3;
                 const color = `rgb(${Math.round(avgR)}, ${Math.round(avgG)}, ${Math.round(avgB)})`;
                 
+                // Count yellow triangles (player)
+                if (avgR > 200 && avgG > 200 && avgB < 50) yellowCount++;
+                
                 ctx.fillStyle = color;
                 ctx.beginPath();
                 ctx.moveTo(p0.x, p0.y);
@@ -741,6 +747,18 @@
                 ctx.strokeStyle = 'rgba(128,128,128,0.2)';
                 ctx.lineWidth = 0.5;
                 ctx.stroke();
+            }
+            
+            // Log last 2 triangles (should be player tile)
+            const lastIdx = indices.length - 6;
+            if (lastIdx >= 0) {
+                const li = indices[lastIdx] * 7;
+                const lx = vertices[li] * scaleX;
+                const lz = vertices[li + 2] * scaleY;
+                const lr = Math.round(vertices[li + 3] * 255);
+                const lg = Math.round(vertices[li + 4] * 255);
+                const lb = Math.round(vertices[li + 5] * 255);
+                console.log('Last tri: px=' + lx.toFixed(0) + ' py=' + lz.toFixed(0) + ' rgb=(' + lr + ',' + lg + ',' + lb + ') yellow=' + yellowCount + '/' + totalTris);
             }
         }
 
