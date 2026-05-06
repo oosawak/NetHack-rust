@@ -75,7 +75,9 @@
             flex-direction: column;
             gap: 15px;
             overflow-y: auto;
+            overflow-x: hidden;
             transition: width 0.3s ease, opacity 0.3s ease;
+            max-height: calc(100vh - 100px);
         }
 
         .sidebar.collapsed {
@@ -234,7 +236,7 @@
 
         .collapsible-content {
             padding: 12px;
-            max-height: 500px;
+            max-height: 1000px;
             overflow: hidden;
             transition: max-height 0.3s ease, padding 0.3s ease;
         }
