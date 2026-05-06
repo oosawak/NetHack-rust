@@ -385,6 +385,14 @@
                 // ESM import using dynamic import
                 const wasmModule = await import('./nethack_wasm.js');
                 
+                status.textContent = 'Initializing WASM...';
+                // Initialize WASM module (loads the .wasm binary)
+                if (wasmModule.default) {
+                    await wasmModule.default();
+                } else if (wasmModule.__wbg_init) {
+                    await wasmModule.__wbg_init();
+                }
+                
                 status.textContent = 'Creating game instance...';
                 // Use create_game function from WASM module
                 game = wasmModule.create_game();
