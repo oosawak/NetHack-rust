@@ -665,11 +665,11 @@
         }
 
         function renderVertices(vertices, indices) {
-            // Dungeon is 80x24 tiles, fit into 800x600 canvas
-            const scaleX = canvas.width / 80;   // ~10 pixels per tile width
-            const scaleY = canvas.height / 24;  // ~25 pixels per tile height
+            // X: 0-80 (dungeon width), Y: 0-1 (normalized height)
+            const scaleX = canvas.width / 80;    // X: dungeon coords to pixels
+            const scaleY = canvas.height;        // Y: normalized (0-1) to pixels
             const offsetX = 0;
-            const offsetY = 50;  // Simple offset for now
+            const offsetY = 0;
             
             // Find min/max Y values
             let minY = Infinity, maxY = -Infinity;
@@ -680,9 +680,6 @@
             
             // Debug: log Y range
             console.log('Y range: min=' + minY + ' max=' + maxY);
-            
-            // Debug: log first few triangles
-            let trianglesDrawn = 0;
 
             // Draw triangles
             for (let i = 0; i < indices.length; i += 3) {
