@@ -256,21 +256,22 @@
 
         .collapsible-content {
             padding: 12px;
-            max-height: 1000px;
-            overflow: hidden;
+            max-height: 5000px;
+            overflow: visible;
             transition: max-height 0.3s ease, padding 0.3s ease;
         }
 
         .collapsible-header.collapsed + .collapsible-content {
             max-height: 0;
             padding: 0 12px;
+            overflow: hidden;
         }
     </style>
 </head>
 <body>
     <header>
         <h1>🎮 NetHack WASM Browser Demo</h1>
-        <p>Arrow keys to move • 1-5 for camera modes • Q to quit • Click ⟦ to hide sidebar</p>
+        <p>Arrow keys to move • 1-5 for camera modes • Q to quit</p>
     </header>
 
     <div class="container">
@@ -282,7 +283,7 @@
 
         <div class="sidebar">
             <div class="sidebar-toggle" onclick="toggleSidebar()">
-                <span style="color: #4a9eff; font-size: 18px; font-weight: bold;">⟦ Close</span>
+                <span style="color: #4a9eff; font-size: 18px; font-weight: bold;"><<</span>
             </div>
 
             <div class="collapsible-panel">
@@ -389,9 +390,9 @@
             
             // Update button text
             if (sidebar.classList.contains('collapsed')) {
-                toggleBtn.textContent = '⟫';
+                toggleBtn.textContent = '>>';
             } else {
-                toggleBtn.textContent = '⟦ Close';
+                toggleBtn.textContent = '<<';
             }
         }
 
