@@ -256,7 +256,7 @@
                 status.textContent = 'Loading WASM module...';
 
                 // ESM import using dynamic import
-                const wasmModule = await import('../crates/nethack-wasm/pkg/nethack_wasm.js');
+                const wasmModule = await import('./nethack_wasm.js');
                 
                 status.textContent = 'Creating game instance...';
                 game = new wasmModule.Game();
