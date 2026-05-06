@@ -46,10 +46,7 @@ impl GameRenderer {
         self.vertices.clear();
         self.indices.clear();
 
-        // Draw player as a small cube
-        self.add_player_cube(player_x as f32, player_y as f32);
-
-        // Draw dungeon floor grid
+        // Draw dungeon floor grid first (background)
         self.add_dungeon_floor(
             player_x,
             player_y,
@@ -72,57 +69,16 @@ impl GameRenderer {
         // Draw stairs from C library (desktop only)
         #[cfg(not(target_arch = "wasm32"))]
         self.add_stairs_from_c();
+
+        // Draw player last (on top of everything)
+        self.add_player_cube(player_x as f32, player_y as f32);
     }
 
-    /// Add player as a small colored cube
+    /// Add player as a visible tile (top-down 2D)
     fn add_player_cube(&mut self, x: f32, y: f32) {
-        let size = 0.4;
-        let player_color = [1.0, 1.0, 0.0, 1.0]; // Yellow
-
-        // Define cube vertices (8 corners)
-        let min_x = x - size / 2.0;
-        let max_x = x + size / 2.0;
-        let min_y = 0.1;
-        let max_y = 0.9;
-        let min_z = y - size / 2.0;
-        let max_z = y + size / 2.0;
-
-        let start_idx = self.vertices.len() as u16;
-
-        // Add 8 vertices of cube
-        self.add_vertex(min_x, min_y, min_z, player_color);
-        self.add_vertex(max_x, min_y, min_z, player_color);
-        self.add_vertex(max_x, max_y, min_z, player_color);
-        self.add_vertex(min_x, max_y, min_z, player_color);
-        self.add_vertex(min_x, min_y, max_z, player_color);
-        self.add_vertex(max_x, min_y, max_z, player_color);
-        self.add_vertex(max_x, max_y, max_z, player_color);
-        self.add_vertex(min_x, max_y, max_z, player_color);
-
-        // Add cube faces (2 triangles per face, 6 faces)
-        // Front face (z = min_z)
-        self.add_triangle(start_idx + 0, start_idx + 1, start_idx + 2);
-        self.add_triangle(start_idx + 0, start_idx + 2, start_idx + 3);
-
-        // Back face (z = max_z)
-        self.add_triangle(start_idx + 6, start_idx + 5, start_idx + 4);
-        self.add_triangle(start_idx + 7, start_idx + 6, start_idx + 4);
-
-        // Top face (y = max_y)
-        self.add_triangle(start_idx + 3, start_idx + 2, start_idx + 6);
-        self.add_triangle(start_idx + 3, start_idx + 6, start_idx + 7);
-
-        // Bottom face (y = min_y)
-        self.add_triangle(start_idx + 4, start_idx + 5, start_idx + 1);
-        self.add_triangle(start_idx + 4, start_idx + 1, start_idx + 0);
-
-        // Left face (x = min_x)
-        self.add_triangle(start_idx + 4, start_idx + 0, start_idx + 3);
-        self.add_triangle(start_idx + 4, start_idx + 3, start_idx + 7);
-
-        // Right face (x = max_x)
-        self.add_triangle(start_idx + 1, start_idx + 5, start_idx + 6);
-        self.add_triangle(start_idx + 1, start_idx + 6, start_idx + 2);
+        let player_color = [1.0, 1.0, 0.0, 1.0]; // Bright Yellow
+        // Draw player as a full tile at floor level (z = dungeon Y = y param)
+        self.add_tile(x, y, 1.0, 0.0, player_color);
     }
 
     /// Add dungeon floor as a grid of tiles
