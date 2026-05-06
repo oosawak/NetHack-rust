@@ -555,9 +555,9 @@
             ctx = canvas.getContext('2d');
             
             // Debug canvas initialization
-            console.log('Canvas created:', width + 'x' + height);
-            console.log('Context type:', ctx ? '2D context OK' : 'FAILED');
-            console.log('Wrapper element:', wrapper ? 'OK' : 'MISSING');
+            addDebugLog('Canvas created: ' + width + 'x' + height);
+            addDebugLog('Context: ' + (ctx ? 'OK' : 'FAILED'));
+            addDebugLog('Wrapper: ' + (wrapper ? 'OK' : 'MISSING'));
             
             // Set up input
             setupInput();
