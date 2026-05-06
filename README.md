@@ -35,10 +35,10 @@ Phase 4: Desktop Graphics Pipeline          ✅ DONE
   4.2: Game State → Vertices                ✅ DONE (Player cube, dungeon floor)
   4.3: Camera Integration (5 views)         ✅ DONE (TopDown, Isometric, etc.)
   4.4: Input System                         ✅ DONE (Arrow keys → movement)
-Phase 5: Monster & Item Rendering           🔄 IN PROGRESS
+Phase 5: Monster & Item Rendering           ✅ DONE
   5.0: Infrastructure                       ✅ DONE (FFI wrappers, renderer stubs)
   5.1: Fix Linker & Enable Monster Render   ✅ DONE (svl extern, static lib, wrappers)
-  5.2: Item Rendering                       🔄 IN PROGRESS
+  5.2: Item Rendering                       ✅ DONE (Cyan cubes, OBJ_FLOOR enumeration)
 Phase 6: WASM Build                         📋 Planned
 Phase 7: Unity Plugin (cdylib)              📋 Planned
 ```
@@ -162,10 +162,12 @@ docs/
 - Input → GameCommand → execution flow
 - Monster rendering from C library (red/yellow colored cubes)
 - Monster enumeration via safe FFI wrapper (get_monster_count/by_index)
+- Item rendering from C library (cyan colored cubes, smaller than monsters)
+- Item enumeration via safe FFI wrapper (get_object_count/by_index, OBJ_FLOOR filter)
 
 🔄 **In Progress:**
-- Item rendering and placement
-- Expanded dungeon features
+- Expanded dungeon features (stairs, doors, traps)
+- Game turn cycle integration
 
 📋 **Planned:**
 - WASM target for browser play
@@ -184,6 +186,27 @@ docs/
 - **Rendering:** `crates/nethack-render/src/renderer.rs`
 - **Desktop:** `crates/nethack-desktop/src/main.rs`
 - **Architecture:** See `ARCHITECTURE.md` for full technical details
+
+---
+
+## 📝 Recent Changes
+
+### Phase 5.2: Item Rendering (Latest - Current)
+- ✅ Implemented item enumeration from C library
+- ✅ Added safe FFI wrappers: `get_object_count()`, `get_object_by_index()`
+- ✅ Items render as cyan cubes (distinct from monsters and player)
+- ✅ Proper OBJ_FLOOR filtering to show only dungeon floor items
+- ✅ All 17 tests passing, release binary 14MB
+
+### Phase 5.1: Monster Rendering & Linker Fix
+- Fixed critical linker error by declaring `extern struct instance_globals_saved_l svl`
+- Resolved missing symbol issues via static library archive (libnetHack.a)
+- Implemented monster enumeration and rendering (red=hostile, yellow=peaceful)
+
+### Phase 4.4: Input System & Camera Integration
+- Arrow keys mapped to movement commands
+- V key for camera mode switching (5 modes)
+- Proper event loop integration with winit
 
 ---
 
