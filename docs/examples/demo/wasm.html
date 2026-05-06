@@ -390,19 +390,29 @@
         let mobileControlsVisible = false;
         let debugLogs = [];
 
+        // Build version — updated on every push
+        const BUILD_INFO = {
+            date: "2026-05-06",
+            version: "v0.4",
+            changes: "Dungeon rooms+corridors, wall collision, square tiles"
+        };
+
         // Debug logging to screen
         function addDebugLog(message) {
             debugLogs.push(message);
-            if (debugLogs.length > 8) debugLogs.shift();
+            if (debugLogs.length > 10) debugLogs.shift();
             updateDebugDisplay();
         }
 
         function updateDebugDisplay() {
             const logDiv = document.getElementById('debug-log');
             if (logDiv) {
-                logDiv.innerHTML = debugLogs.map(log => 
+                const versionLine = `<div style="color:#4af; border-bottom:1px solid #4af; margin-bottom:3px; padding-bottom:2px;">` +
+                    `📦 ${BUILD_INFO.date} ${BUILD_INFO.version}: ${BUILD_INFO.changes}</div>`;
+                logDiv.innerHTML = versionLine + debugLogs.map(log =>
                     `<div>${new Date().toLocaleTimeString()}: ${log}</div>`
                 ).join('');
+                logDiv.scrollTop = logDiv.scrollHeight;
             }
         }
 
