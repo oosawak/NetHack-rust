@@ -108,16 +108,21 @@ impl Level {
             let (sx, ex) = if cx1 <= cx2 { (cx1, cx2) } else { (cx2, cx1) };
             for x in sx..=ex {
                 let tile = &mut self.tiles[cy1 as usize][x as usize];
-                if *tile == Tile::Empty {
-                    *tile = Tile::Corridor;
+                match *tile {
+                    Tile::Empty => *tile = Tile::Corridor,
+                    // Wall adjacent to room entrance → open as floor (doorway)
+                    Tile::Wall  => *tile = Tile::Floor,
+                    _ => {}
                 }
             }
             // Vertical segment
             let (sy, ey) = if cy1 <= cy2 { (cy1, cy2) } else { (cy2, cy1) };
             for y in sy..=ey {
                 let tile = &mut self.tiles[y as usize][cx2 as usize];
-                if *tile == Tile::Empty {
-                    *tile = Tile::Corridor;
+                match *tile {
+                    Tile::Empty => *tile = Tile::Corridor,
+                    Tile::Wall  => *tile = Tile::Floor,
+                    _ => {}
                 }
             }
         }
