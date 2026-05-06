@@ -121,18 +121,45 @@ int get_monster_by_index(int index, monster_data_t *out) {
     return 1;  /* Success */
 }
 
-/* Get object count (stub - returns 0 for now) */
+/* Get object count (scan fobj list for floor objects) */
 int get_object_count(void) {
-    /* TODO: Properly enumerate level objects through fobj or dungeon state
-     * For now, returning 0 to allow basic monster rendering */
-    return 0;
+    struct obj *o = fobj;
+    int count = 0;
+    
+    while (o != NULL) {
+        /* Count only objects on the floor, not in containers or inventory */
+        if (o->where == OBJ_FLOOR) {
+            count++;
+        }
+        o = o->nobj;
+    }
+    
+    return count;
 }
 
-/* Get object data by iteration index (stub - returns failure for now) */
+/* Get object data by iteration index (returns floor objects only) */
 int get_object_by_index(int index, object_data_t *out) {
-    (void)index;  /* unused */
     if (!out) return -1;
-    /* TODO: Implement level object enumeration */
+    
+    struct obj *o = fobj;
+    int count = 0;
+    
+    while (o != NULL) {
+        if (o->where == OBJ_FLOOR) {
+            if (count == index) {
+                /* Found the object at the requested index */
+                out->x = (int)o->ox;
+                out->y = (int)o->oy;
+                out->object_id = o->otyp;  /* Use object type as ID */
+                out->symbol = (int)'*';    /* Generic item symbol */
+                
+                return 1;  /* Success */
+            }
+            count++;
+        }
+        o = o->nobj;
+    }
+    
     return 0;  /* Not found */
 }
 

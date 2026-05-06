@@ -249,9 +249,31 @@ impl GameRenderer {
 
     /// Add items from C library (if available)
     fn add_items_from_c(&mut self) {
-        // Note: This would use unsafe FFI to call C code for item enumeration
-        // For now, items are disabled pending C library integration
-        // TODO: Implement level object enumeration
+        let count = unsafe { nethack_sys::get_object_count() };
+        
+        for i in 0..count {
+            let mut object_data: nethack_sys::object_data_t = unsafe { std::mem::zeroed() };
+            let result = unsafe { nethack_sys::get_object_by_index(i, &mut object_data) };
+            
+            if result != 0 {
+                let x = object_data.x as f32;
+                let y = object_data.y as f32;
+                
+                // Render as small cyan cube (different from monsters)
+                let color = [0.0, 1.0, 1.0, 1.0];  // Cyan for items
+                self.add_creature_cube(x, y, 0.2, color);  // Smaller than monsters
+                
+                // Debug logging (once per 10 items to avoid spam)
+                if i % 10 == 0 {
+                    tracing::debug!("Rendered item {} at ({}, {})", 
+                                   i, object_data.x, object_data.y);
+                }
+            }
+        }
+        
+        if count > 0 {
+            tracing::info!("Rendered {} items from C library", count);
+        }
     }
 
     /// Add a small cube for creatures/items
