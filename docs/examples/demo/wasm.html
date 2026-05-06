@@ -490,12 +490,26 @@
                 const status = document.getElementById('status');
                 status.textContent = 'Loading WASM module...';
 
-                // ESM import using dynamic import
-                const wasmModule = await import('./nethack_wasm.js');
+                // ESM import using dynamic import with cache bypass
+                const timestamp = new Date().getTime();
+                const wasmModule = await import(`./nethack_wasm.js?t=${timestamp}`);
                 
                 status.textContent = 'Initializing WASM...';
                 // Initialize WASM module (loads the .wasm binary)
+                // Force download of .wasm file with cache bypass
                 if (wasmModule.default) {
+                    // Add cache bypass to WASM file
+                    const originalInit = wasmModule.default;
+                    wasmModule.default = async function() {
+                        // Reload WASM binary with fresh timestamp
+                        const wasmUrl = `./nethack_wasm_bg.wasm?t=${timestamp}`;
+                        const response = await fetch(wasmUrl);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const buffer = await response.arrayBuffer();
+                        return WebAssembly.instantiate(buffer, wasmModule.__wbg_init || {});
+                    };
                     await wasmModule.default();
                 } else if (wasmModule.__wbg_init) {
                     await wasmModule.__wbg_init();
