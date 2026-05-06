@@ -636,8 +636,7 @@
             ctx.fillText('Canvas: ' + width + 'x' + height, 10, 20);
             ctx.fillText('Scale: 10x (800/80) x 25x (600/24)', 10, 35);
 
-            // Draw grid overlay (optional)
-            drawGridOverlay(width, height);
+            // Grid overlay removed - was causing visible line artifacts
         }
 
         function renderVertices(vertices, indices) {
@@ -661,62 +660,36 @@
             
             console.log('X range: ' + minX.toFixed(1) + ' to ' + maxX.toFixed(1) + ', Z range: ' + minZ.toFixed(1) + ' to ' + maxZ.toFixed(1));
 
-            const totalTris = indices.length / 3;
+            const totalQuads = indices.length / 6;
             let yellowCount = 0;
 
-            // Draw triangles using X and Z for screen position
-            for (let i = 0; i < indices.length; i += 3) {
-                const i0 = indices[i] * 7;
-                const i1 = indices[i + 1] * 7;
-                const i2 = indices[i + 2] * 7;
+            // Draw quads as rectangles (each tile = 4 vertices + 6 indices = 2 triangles)
+            // Using fillRect avoids diagonal seam artifacts from triangle rendering
+            for (let i = 0; i < indices.length; i += 6) {
+                // Each quad: indices [a,b,c, c,b,d] → 4 unique vertices a,b,c,d
+                const vi0 = indices[i] * 7;
+                const vi1 = indices[i + 1] * 7;
+                const vi2 = indices[i + 2] * 7;
+                const vi3 = indices[i + 4] * 7; // 4th unique vertex
 
-                const p0 = {
-                    x: vertices[i0] * scaleX,
-                    y: vertices[i0 + 2] * scaleY,
-                    r: Math.round(vertices[i0 + 3] * 255),
-                    g: Math.round(vertices[i0 + 4] * 255),
-                    b: Math.round(vertices[i0 + 5] * 255),
-                    a: vertices[i0 + 6]
-                };
+                const xs = [vertices[vi0], vertices[vi1], vertices[vi2], vertices[vi3]];
+                const zs = [vertices[vi0+2], vertices[vi1+2], vertices[vi2+2], vertices[vi3+2]];
+                const minQX = Math.min(...xs) * scaleX;
+                const minQZ = Math.min(...zs) * scaleY;
+                const w = (Math.max(...xs) - Math.min(...xs)) * scaleX;
+                const h = (Math.max(...zs) - Math.min(...zs)) * scaleY;
 
-                const p1 = {
-                    x: vertices[i1] * scaleX,
-                    y: vertices[i1 + 2] * scaleY,
-                    r: Math.round(vertices[i1 + 3] * 255),
-                    g: Math.round(vertices[i1 + 4] * 255),
-                    b: Math.round(vertices[i1 + 5] * 255),
-                    a: vertices[i1 + 6]
-                };
+                const r = Math.round(vertices[vi0 + 3] * 255);
+                const g = Math.round(vertices[vi0 + 4] * 255);
+                const b = Math.round(vertices[vi0 + 5] * 255);
 
-                const p2 = {
-                    x: vertices[i2] * scaleX,
-                    y: vertices[i2 + 2] * scaleY,
-                    r: Math.round(vertices[i2 + 3] * 255),
-                    g: Math.round(vertices[i2 + 4] * 255),
-                    b: Math.round(vertices[i2 + 5] * 255),
-                    a: vertices[i2 + 6]
-                };
+                if (r > 200 && g > 200 && b < 50) yellowCount++;
 
-                // Use average color
-                const avgR = (p0.r + p1.r + p2.r) / 3;
-                const avgG = (p0.g + p1.g + p2.g) / 3;
-                const avgB = (p0.b + p1.b + p2.b) / 3;
-                const color = `rgb(${Math.round(avgR)}, ${Math.round(avgG)}, ${Math.round(avgB)})`;
-                
-                // Count yellow triangles (player)
-                if (avgR > 200 && avgG > 200 && avgB < 50) yellowCount++;
-                
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.moveTo(p0.x, p0.y);
-                ctx.lineTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.closePath();
-                ctx.fill();
-                // No stroke outline - avoids black seam lines between tiles
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(minQX, minQZ, w, h);
             }
-            
-            // Log last 2 triangles (should be player tile)
+
+            // Log last quad (should be player tile)
             const lastIdx = indices.length - 6;
             if (lastIdx >= 0) {
                 const li = indices[lastIdx] * 7;
@@ -725,7 +698,7 @@
                 const lr = Math.round(vertices[li + 3] * 255);
                 const lg = Math.round(vertices[li + 4] * 255);
                 const lb = Math.round(vertices[li + 5] * 255);
-                console.log('Last tri: px=' + lx.toFixed(0) + ' py=' + lz.toFixed(0) + ' rgb=(' + lr + ',' + lg + ',' + lb + ') yellow=' + yellowCount + '/' + totalTris);
+                console.log('Last quad: px=' + lx.toFixed(0) + ' py=' + lz.toFixed(0) + ' rgb=(' + lr + ',' + lg + ',' + lb + ') yellow=' + yellowCount + '/' + totalQuads);
             }
         }
 
