@@ -283,7 +283,19 @@
 
         <div class="sidebar">
             <div class="sidebar-toggle" onclick="toggleSidebar()">
-                <span style="color: #4a9eff; font-size: 18px; font-weight: bold;"><<</span>
+                <span style="color: #4a9eff; font-size: 18px; font-weight: bold;">Close</span>
+            </div>
+
+            <!-- Error Panel - Always visible at top -->
+            <div class="panel" id="error-panel" style="display: none;">
+                <h3>⚠️ Error</h3>
+                <div class="error" id="error-msg"></div>
+            </div>
+
+            <!-- Status Panel - Always visible -->
+            <div class="panel">
+                <h3>Status</h3>
+                <div class="status" id="status">Initializing...</div>
             </div>
 
             <div class="collapsible-panel">
@@ -345,26 +357,6 @@
                     </div>
                 </div>
             </div>
-
-            <div class="collapsible-panel">
-                <div class="collapsible-header" onclick="toggleCollapsible(this)">
-                    <h3>Status</h3>
-                    <span class="collapse-icon">▼</span>
-                </div>
-                <div class="collapsible-content">
-                    <div class="status" id="status">Initializing...</div>
-                </div>
-            </div>
-
-            <div class="collapsible-panel" id="error-panel" style="display: none;">
-                <div class="collapsible-header" onclick="toggleCollapsible(this)">
-                    <h3>Error</h3>
-                    <span class="collapse-icon">▼</span>
-                </div>
-                <div class="collapsible-content">
-                    <div class="error" id="error-msg"></div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -390,9 +382,9 @@
             
             // Update button text
             if (sidebar.classList.contains('collapsed')) {
-                toggleBtn.textContent = '>>';
+                toggleBtn.textContent = 'Open';
             } else {
-                toggleBtn.textContent = '<<';
+                toggleBtn.textContent = 'Close';
             }
         }
 
