@@ -8,6 +8,14 @@ typedef struct coord {
     int x, y;
 } coord;
 
+/* Player info structure for safe FFI */
+typedef struct {
+    int x, y;           /* ux, uy */
+    int level;          /* ulevel */
+    int hp, max_hp;     /* mh, mhmax */
+    int dungeon_level;  /* dlevel */
+} player_state_t;
+
 /* Game initialization functions (from unixmain.c flow) */
 extern void early_init(void);
 extern void choose_windows(int);
@@ -42,3 +50,15 @@ extern struct dungeon_topology dungeon;
 extern struct obj *fobj;
 extern struct monst *fmon;
 extern struct window_procs *windowprocs;
+
+/* Safe accessor functions for player state */
+/* These are implemented in a companion C file to safely read struct you */
+int get_player_x(void);
+int get_player_y(void);
+int get_player_level(void);
+int get_player_hp(void);
+int get_player_maxhp(void);
+
+/* Bulk player state accessor */
+void get_player_state(player_state_t *state);
+

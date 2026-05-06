@@ -23,9 +23,10 @@ fn main() {
     let include_dir = nethack_root.join("include");
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-    // Recompile if wrapper.h changes
+    // Recompile if wrapper.h or wrapper.c changes
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-changed=wrapper.c");
 
     // Generate FFI bindings using bindgen
     let bindings = bindgen::Builder::default()
@@ -45,6 +46,13 @@ fn main() {
         .allowlist_function("docommand")
         .allowlist_function("getlock")
         .allowlist_function("player_selection")
+        // Player state accessor functions
+        .allowlist_function("get_player_x")
+        .allowlist_function("get_player_y")
+        .allowlist_function("get_player_level")
+        .allowlist_function("get_player_hp")
+        .allowlist_function("get_player_maxhp")
+        .allowlist_function("get_player_state")
         // Variables
         .allowlist_var("dlevel")
         .allowlist_var("dunlevs")
@@ -83,6 +91,16 @@ fn main() {
                 obj_count += 1;
             }
         }
+    }
+
+    // Compile wrapper.c (accessor functions)
+    let wrapper_src = manifest_dir.join("wrapper.c");
+    if wrapper_src.exists() {
+        cc::Build::new()
+            .file(&wrapper_src)
+            .include(&include_dir)
+            .include(&src_dir)
+            .compile("wrapper");
     }
 
     // Link system libraries that NetHack depends on

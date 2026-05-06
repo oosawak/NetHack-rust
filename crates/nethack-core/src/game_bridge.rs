@@ -108,9 +108,9 @@ impl GameBridge {
     ///
     /// This will read the player position from the C global `u`
     pub fn player_position(&self) -> Option<(i32, i32)> {
-        // TODO: Implement in Phase 3.1
-        // Will read from C: you.ux, you.uy
-        None
+        // Now implemented! Read from C globals via accessor functions
+        let info = nethack_sys::globals::get_player_info();
+        Some(info.position())
     }
 
     /// Get current view mode
