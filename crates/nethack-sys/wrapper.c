@@ -11,6 +11,9 @@
 #include "obj.h"
 #include "rm.h"
 #include "decl.h"
+#include "trap.h"
+#include "stairs.h"
+#include "wrapper.h"
 #include <unistd.h>
 #include <pwd.h>
 #include <stdlib.h>
@@ -42,13 +45,6 @@ int get_player_maxhp(void) {
 }
 
 /* Bulk player state accessor */
-typedef struct {
-    int x, y;
-    int level;
-    int hp, max_hp;
-    int dungeon_level;
-} player_state_t;
-
 void get_player_state(player_state_t *state) {
     if (!state) return;
     state->x = (int)u.ux;
@@ -68,22 +64,6 @@ int get_dlevel(void) {
 int get_dunlevs(void) {
     return 50;  /* Placeholder - actual dunlevs tracking TODO */
 }
-
-/* FFI structure for passing monster data */
-typedef struct {
-    int x, y;                  /* Position */
-    int hp, max_hp;            /* Health */
-    int monster_id;            /* Unique ID */
-    int symbol;                /* ASCII representation */
-    int is_peaceful;           /* 1 if peaceful, 0 if hostile */
-} monster_data_t;
-
-/* FFI structure for passing object data */
-typedef struct {
-    int x, y;        /* Position */
-    int object_id;   /* Object type ID */
-    int symbol;      /* ASCII representation */
-} object_data_t;
 
 /* Get monster count (scan fmon list) */
 int get_monster_count(void) {
@@ -198,4 +178,79 @@ char *whoami(void) {
     
     strcpy(buf, "player");
     return buf;
+}
+
+/* Get trap count on current level */
+int get_trap_count(void) {
+    struct trap *t = gf.ftrap;
+    int count = 0;
+    
+    while (t != NULL) {
+        count++;
+        t = t->ntrap;
+    }
+    
+    return count;
+}
+
+/* Get trap data by iteration index */
+int get_trap_by_index(int index, trap_data_t *out) {
+    if (!out) return -1;
+    
+    struct trap *t = gf.ftrap;
+    int count = 0;
+    
+    while (t != NULL) {
+        if (count == index) {
+            /* Found the trap at the requested index */
+            out->x = (int)t->tx;
+            out->y = (int)t->ty;
+            out->trap_type = (int)t->ttyp;
+            out->symbol = (int)'^';  /* Generic trap symbol */
+            
+            return 1;  /* Success */
+        }
+        count++;
+        t = t->ntrap;
+    }
+    
+    return 0;  /* Not found */
+}
+
+/* Get stairway count on current level */
+int get_stair_count(void) {
+    stairway *s = gs.stairs;
+    int count = 0;
+    
+    while (s != NULL) {
+        count++;
+        s = s->next;
+    }
+    
+    return count;
+}
+
+/* Get stairway data by iteration index */
+int get_stair_by_index(int index, stair_data_t *out) {
+    if (!out) return -1;
+    
+    stairway *s = gs.stairs;
+    int count = 0;
+    
+    while (s != NULL) {
+        if (count == index) {
+            /* Found the stairway at the requested index */
+            out->x = (int)s->sx;
+            out->y = (int)s->sy;
+            out->is_up = s->up ? 1 : 0;
+            out->is_ladder = s->isladder ? 1 : 0;
+            out->symbol = s->up ? (int)'<' : (int)'>';  /* < for up, > for down */
+            
+            return 1;  /* Success */
+        }
+        count++;
+        s = s->next;
+    }
+    
+    return 0;  /* Not found */
 }

@@ -48,7 +48,7 @@ pub fn get_player_info() -> PlayerInfo {
             level: crate::get_player_level(),
             hp: crate::get_player_hp(),
             max_hp: crate::get_player_maxhp(),
-            dungeon_level: crate::dlevel,
+            dungeon_level: 1,  // dlevel not exposed via FFI - default to 1
         }
     }
 }

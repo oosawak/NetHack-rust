@@ -62,6 +62,12 @@ impl GameRenderer {
 
         // Draw items from C library
         self.add_items_from_c();
+
+        // Draw traps from C library
+        self.add_traps_from_c();
+
+        // Draw stairs from C library
+        self.add_stairs_from_c();
     }
 
     /// Add player as a small colored cube
@@ -314,6 +320,69 @@ impl GameRenderer {
         // Right: 1,5,2 2,5,6
         self.add_triangle(v_start + 1, v_start + 5, v_start + 2);
         self.add_triangle(v_start + 2, v_start + 5, v_start + 6);
+    }
+
+    /// Add traps from C library
+    fn add_traps_from_c(&mut self) {
+        let count = unsafe { nethack_sys::get_trap_count() };
+        
+        for i in 0..count {
+            let mut trap_data: nethack_sys::trap_data_t = unsafe { std::mem::zeroed() };
+            let result = unsafe { nethack_sys::get_trap_by_index(i, &mut trap_data) };
+            
+            if result != 0 {
+                let x = trap_data.x as f32;
+                let y = trap_data.y as f32;
+                
+                // Render as tiny purple cube (distinct from other entities)
+                let color = [0.8, 0.0, 0.8, 1.0];  // Purple for traps
+                self.add_creature_cube(x, y, 0.15, color);  // Smallest size
+                
+                // Debug logging (once per 20 traps to avoid spam)
+                if i % 20 == 0 {
+                    tracing::debug!("Rendered trap {} (type {}) at ({}, {})", 
+                                   i, trap_data.trap_type, trap_data.x, trap_data.y);
+                }
+            }
+        }
+        
+        if count > 0 {
+            tracing::info!("Rendered {} traps from C library", count);
+        }
+    }
+
+    /// Add stairs from C library
+    fn add_stairs_from_c(&mut self) {
+        let count = unsafe { nethack_sys::get_stair_count() };
+        
+        for i in 0..count {
+            let mut stair_data: nethack_sys::stair_data_t = unsafe { std::mem::zeroed() };
+            let result = unsafe { nethack_sys::get_stair_by_index(i, &mut stair_data) };
+            
+            if result != 0 {
+                let x = stair_data.x as f32;
+                let y = stair_data.y as f32;
+                
+                // Render as colored cube based on direction
+                let color = if stair_data.is_up != 0 {
+                    [0.0, 1.0, 0.0, 1.0]  // Green for stairs up
+                } else {
+                    [0.0, 0.0, 1.0, 1.0]  // Blue for stairs down
+                };
+                
+                self.add_creature_cube(x, y, 0.25, color);  // Medium size
+                
+                // Debug logging
+                let direction = if stair_data.is_up != 0 { "up" } else { "down" };
+                let feature = if stair_data.is_ladder != 0 { "ladder" } else { "stairs" };
+                tracing::debug!("Rendered {} ({}) at ({}, {})", 
+                               feature, direction, stair_data.x, stair_data.y);
+            }
+        }
+        
+        if count > 0 {
+            tracing::info!("Rendered {} stairs/ladders from C library", count);
+        }
     }
 }
 

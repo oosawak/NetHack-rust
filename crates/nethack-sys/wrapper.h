@@ -1,12 +1,7 @@
 /*
  * Minimal wrapper header for NetHack FFI
- * Exposes essential initialization and game loop functions
+ * Exposes safe accessor functions for game state
  */
-
-/* Basic types from NetHack */
-typedef struct coord {
-    int x, y;
-} coord;
 
 /* Player info structure for safe FFI */
 typedef struct {
@@ -15,58 +10,6 @@ typedef struct {
     int hp, max_hp;     /* mh, mhmax */
     int dungeon_level;  /* dlevel */
 } player_state_t;
-
-/* Game initialization functions (from unixmain.c flow) */
-extern void early_init(void);
-extern void choose_windows(int);
-extern void initoptions(void);
-extern void init_nhwindows(int *, char **);
-extern void dlb_init(void);
-extern void vision_init(void);
-extern void init_sound_disp_gamewindows(void);
-
-/* Game functions */
-extern void newgame(void);
-extern void moveloop(int);
-extern int docommand(void);
-
-/* Save/restore */
-extern void getlock(void);
-extern void player_selection(void);
-
-/* Global variables */
-extern int dlevel;
-extern int dunlevs;
-
-/* Opaque types (not defining structure details) */
-struct you;
-struct monst;
-struct obj;
-struct dungeon_topology;
-struct window_procs;
-struct instance_globals_saved_l;
-
-extern struct you u;
-extern struct dungeon_topology dungeon;
-extern struct obj *fobj;
-extern struct monst *fmon;
-extern struct window_procs *windowprocs;
-extern struct instance_globals_saved_l svl;  /* For level data access */
-
-/* Safe accessor functions for player state */
-/* These are implemented in a companion C file to safely read struct you */
-int get_player_x(void);
-int get_player_y(void);
-int get_player_level(void);
-int get_player_hp(void);
-int get_player_maxhp(void);
-
-/* Bulk player state accessor */
-void get_player_state(player_state_t *state);
-
-/* Dungeon level accessors */
-int get_dlevel(void);
-int get_dunlevs(void);
 
 /* Monster data structure for FFI */
 typedef struct {
@@ -84,6 +27,35 @@ typedef struct {
     int symbol;      /* ASCII representation */
 } object_data_t;
 
+/* Trap data structure for FFI */
+typedef struct {
+    int x, y;        /* Position */
+    int trap_type;   /* Trap type (1-25) */
+    int symbol;      /* ASCII representation */
+} trap_data_t;
+
+/* Stairway data structure for FFI */
+typedef struct {
+    int x, y;        /* Position */
+    int is_up;       /* 1 if up, 0 if down */
+    int is_ladder;   /* 1 if ladder, 0 if stairs */
+    int symbol;      /* ASCII representation */
+} stair_data_t;
+
+/* Safe accessor functions for player state */
+int get_player_x(void);
+int get_player_y(void);
+int get_player_level(void);
+int get_player_hp(void);
+int get_player_maxhp(void);
+
+/* Bulk player state accessor */
+void get_player_state(player_state_t *state);
+
+/* Dungeon level accessors */
+int get_dlevel(void);
+int get_dunlevs(void);
+
 /* Monster accessor functions */
 int get_monster_count(void);
 int get_monster_by_index(int index, monster_data_t *out);
@@ -91,3 +63,11 @@ int get_monster_by_index(int index, monster_data_t *out);
 /* Object accessor functions */
 int get_object_count(void);
 int get_object_by_index(int index, object_data_t *out);
+
+/* Trap accessor functions */
+int get_trap_count(void);
+int get_trap_by_index(int index, trap_data_t *out);
+
+/* Stairway accessor functions */
+int get_stair_count(void);
+int get_stair_by_index(int index, stair_data_t *out);
