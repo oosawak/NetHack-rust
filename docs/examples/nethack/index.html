@@ -161,6 +161,42 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
     z-index: -1;
 }
 
+/* モバイルナビゲーションバー */
+#nav-bar {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #111;
+    border-top: 1px solid #333;
+    padding: 6px 8px;
+    z-index: 998;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+}
+@media (pointer: coarse) {
+    #nav-bar { display: flex; }
+    body { padding-bottom: 72px; }
+}
+.nav-btn {
+    background: #222;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 6px;
+    min-width: 44px;
+    height: 44px;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 8px;
+    -webkit-tap-highlight-color: rgba(255,255,0,0.3);
+    user-select: none;
+}
+.nav-btn:active { background: #444; }
+.nav-btn.yn { background: #220; color: #ff0; border-color: #ff0; }
+.nav-btn.enter { background: #020; color: #0f0; border-color: #0f0; }
+.nav-btn.esc { background: #200; color: #f44; border-color: #f44; }
+
 </style>
 </head>
 <body>
@@ -181,6 +217,20 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
 
 <!-- モバイルキーボードボタン -->
 <button id="keyboard-btn" title="キーボード表示">⌨️</button>
+
+<!-- モバイルナビゲーションバー -->
+<div id="nav-bar">
+    <button class="nav-btn" data-key="27">✕ ESC</button>
+    <button class="nav-btn" data-key="107">↑</button>
+    <button class="nav-btn" data-key="106">↓</button>
+    <button class="nav-btn" data-key="104">←</button>
+    <button class="nav-btn" data-key="108">→</button>
+    <button class="nav-btn enter" data-key="13">↵ Enter</button>
+    <button class="nav-btn yn" data-key="121">Y</button>
+    <button class="nav-btn yn" data-key="110">N</button>
+    <button class="nav-btn" data-key="32">Space</button>
+    <button class="nav-btn" id="keyboard-btn-bar">⌨️</button>
+</div>
 
 <!-- テキスト入力オーバーレイ -->
 <div id="input-overlay">
@@ -313,6 +363,37 @@ keyboardBtn.addEventListener('click', () => {
     mobileInput.value = '';
     mobileInput.focus();
 });
+
+// ナビバーボタン共通処理
+function sendKey(keyCode) {
+    if (keyResolve) {
+        const resolve = keyResolve;
+        keyResolve = null;
+        resolve(keyCode);
+    } else {
+        keyQueue.push(keyCode);
+    }
+}
+
+// ナビバーボタンのイベント設定
+document.querySelectorAll('.nav-btn[data-key]').forEach(btn => {
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        sendKey(parseInt(btn.dataset.key));
+    });
+    btn.addEventListener('click', () => {
+        sendKey(parseInt(btn.dataset.key));
+    });
+});
+
+// ナビバーの⌨️ボタン
+const keyboardBtnBar = document.getElementById('keyboard-btn-bar');
+if (keyboardBtnBar) {
+    keyboardBtnBar.addEventListener('click', () => {
+        mobileInput.value = '';
+        mobileInput.focus();
+    });
+}
 
 // キー入力の共通処理
 function processKeyEvent(e) {
