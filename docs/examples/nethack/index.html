@@ -29,7 +29,18 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
     align-items: center;
     width: 100%;
 }
-#messages {
+#map-scroll {
+    width: 100%;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #444;
+}
+#map-canvas {
+    display: block;
+    image-rendering: pixelated;
+    cursor: default;
+}
+
     background: #111;
     border: 1px solid #333;
     color: #fff;
@@ -224,11 +235,9 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
 <div id="loading">Loading NetHack WASM...</div>
 <div id="game-container">
     <div id="messages"></div>
-    <div id="rotate-hint" style="display:none;background:#330;color:#ff0;padding:4px 8px;font-size:12px;text-align:center;">
-        📱 横向きにすると全画面で快適にプレイできます
+    <div id="map-scroll">
+        <canvas id="map-canvas"></canvas>
     </div>
-    <canvas id="map-canvas"></canvas>
-    <div id="keyboard-hint">📱 タップしてキーボードを表示</div>
     <div id="status"></div>
     <div id="debug-toggle" onclick="document.getElementById('debug-panel').style.display = document.getElementById('debug-panel').style.display==='none'?'block':'none'">🔍 デバッグ情報</div>
     <div id="debug-panel"></div>
@@ -280,22 +289,9 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const MAP_W = 80, MAP_H = 24;
-let FONT_W, FONT_H, FONT_SIZE;
+const FONT_W = 10, FONT_H = 18, FONT_SIZE = 16;
 
-function calcCellSize() {
-    const availW = Math.min(window.innerWidth - 8, 800);
-    // 横向きなら10px（フルサイズ）、縦向きは画面幅に合わせる
-    if (availW >= 760) {
-        FONT_W = 10; FONT_H = 18; FONT_SIZE = 16;
-    } else if (availW >= 560) {
-        FONT_W = 7;  FONT_H = 13; FONT_SIZE = 11;
-    } else {
-        FONT_W = Math.max(4, Math.floor(availW / MAP_W));
-        FONT_H = Math.round(FONT_W * 1.8);
-        FONT_SIZE = Math.max(6, Math.round(FONT_W * 1.5));
-    }
-}
-calcCellSize();
+function calcCellSize() {}  // スクロール方式なので固定サイズ
 
 // NetHack カラーパレット（CLR_xxx）
 const NH_COLORS = [
@@ -346,13 +342,7 @@ function resizeCanvas() {
     ctx.textBaseline = 'top';
 }
 resizeCanvas();
-window.addEventListener('resize', () => {
-    resizeCanvas();
-    renderMap();
-    // 縦向き時のヒント表示
-    const hint = document.getElementById('rotate-hint');
-    if (hint) hint.style.display = window.innerWidth < 600 ? 'block' : 'none';
-});
+window.addEventListener('resize', () => { resizeCanvas(); renderMap(); });
 
 // ━━ ゲーム状態 ━━
 const mapTiles = new Array(MAP_H).fill(null).map(() =>
@@ -380,6 +370,23 @@ function showMessage(str) {
 }
 
 // ━━ キャンバス描画 ━━
+const mapScroll = document.getElementById('map-scroll');
+
+function scrollToPlayer() {
+    // '@' の位置を探してスクロール
+    for (let y = 0; y < MAP_H; y++) {
+        for (let x = 0; x < MAP_W; x++) {
+            if (mapTiles[y][x].ch === '@') {
+                const px = x * FONT_W;
+                const py = y * FONT_H;
+                mapScroll.scrollLeft = px - mapScroll.clientWidth / 2;
+                mapScroll.scrollTop  = py - mapScroll.clientHeight / 2;
+                return;
+            }
+        }
+    }
+}
+
 function renderMap() {
     ctx.font = `${FONT_SIZE}px 'Courier New', monospace`;
     ctx.textBaseline = 'top';
@@ -397,6 +404,7 @@ function renderMap() {
         }
     }
     mapDirty = false;
+    scrollToPlayer();
 }
 
 function setTile(x, y, ch, color, bgColor) {
