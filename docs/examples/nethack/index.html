@@ -351,18 +351,25 @@ const keyboardBtn = document.getElementById('keyboard-btn');
 
 // モバイル用: キャンバスタップでキーボード表示
 canvas.addEventListener('click', () => {
-    mobileInput.focus();
+    focusMobileInput();
 });
 canvas.addEventListener('touchend', (e) => {
     e.preventDefault();
-    mobileInput.focus();
+    focusMobileInput();
 });
 
 // ⌨️ボタンでキーボード表示
 keyboardBtn.addEventListener('click', () => {
-    mobileInput.value = '';
-    mobileInput.focus();
+    focusMobileInput();
 });
+
+// 番兵文字: iOSでBackspaceを検知するためフィールドを空にしない
+const SENTINEL = '\u00a0'; // ノーブレークスペース
+function focusMobileInput() {
+    mobileInput.value = SENTINEL;
+    mobileInput.setSelectionRange(SENTINEL.length, SENTINEL.length);
+    mobileInput.focus();
+}
 
 // ナビバーボタン共通処理
 function sendKey(keyCode) {
@@ -390,8 +397,7 @@ document.querySelectorAll('.nav-btn[data-key]').forEach(btn => {
 const keyboardBtnBar = document.getElementById('keyboard-btn-bar');
 if (keyboardBtnBar) {
     keyboardBtnBar.addEventListener('click', () => {
-        mobileInput.value = '';
-        mobileInput.focus();
+        focusMobileInput();
     });
 }
 
@@ -416,24 +422,29 @@ document.addEventListener('keydown', processKeyEvent);
 // モバイル用: 隠し入力への入力
 mobileInput.addEventListener('keydown', (e) => {
     processKeyEvent(e);
-    // 入力フィールドをクリアして次の入力を受け付ける
-    setTimeout(() => { mobileInput.value = ''; }, 0);
+    // 番兵文字を維持（keydown後にリセット）
+    setTimeout(() => {
+        mobileInput.value = SENTINEL;
+        mobileInput.setSelectionRange(SENTINEL.length, SENTINEL.length);
+    }, 0);
 });
 
-// input イベント（keydownが発火しない入力メソッドに対応）
+// input イベント（keydownが発火しない入力メソッド対応 + Backspace検知）
 mobileInput.addEventListener('input', (e) => {
     const val = mobileInput.value;
-    if (!val) return;
-    const ch = val[val.length - 1]; // 最後の1文字
-    mobileInput.value = '';
-    const code = ch.charCodeAt(0);
-    if (keyResolve) {
-        const resolve = keyResolve;
-        keyResolve = null;
-        resolve(code);
+    if (val.length < SENTINEL.length) {
+        // 番兵より短い = Backspace が押された
+        sendKey(8); // BS
     } else {
-        keyQueue.push(code);
+        // 通常入力: 番兵より後ろの文字を取得
+        const added = val.slice(SENTINEL.length);
+        for (const ch of added) {
+            sendKey(ch.charCodeAt(0));
+        }
     }
+    // 番兵を復元
+    mobileInput.value = SENTINEL;
+    mobileInput.setSelectionRange(SENTINEL.length, SENTINEL.length);
 });
 
 // NetHack キーコードへ変換
@@ -603,7 +614,7 @@ async function nethackCallback(name, ...args) {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('game-container').style.display = 'flex';
         canvas.focus();
-        mobileInput.focus();
+        focusMobileInput();
         return;
 
     case 'shim_askname': {
