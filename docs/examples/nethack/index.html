@@ -114,8 +114,8 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
     overflow-y: auto;
 }
 #menu-box .title { color: #0af; font-size: 15px; margin-bottom: 8px; border-bottom: 1px solid #0af; padding-bottom: 4px; }
-.menu-item { padding: 2px 0; cursor: pointer; }
-.menu-item:hover { background: #222; }
+.menu-item { padding: 8px 4px; cursor: pointer; min-height: 36px; display: flex; align-items: center; border-bottom: 1px solid #1a1a1a; }
+.menu-item:hover, .menu-item:active { background: #222; }
 .menu-item.selected { color: #ff0; }
 .menu-item .key { color: #0f0; display: inline-block; width: 20px; }
 #menu-box .footer { color: #888; font-size: 12px; margin-top: 8px; border-top: 1px solid #333; padding-top: 4px; }
@@ -539,9 +539,9 @@ function selectMenuItems(winId, how) {
 
         menuTitleEl.textContent = menu.title || '';
         menuItemsEl.innerHTML = '';
-        menuFooterEl.textContent = how === 0 ? 'Press key to continue' :
-                                   how === 1 ? 'Select one item (letter key)' :
-                                               'Select items (letter keys), then Enter';
+        menuFooterEl.textContent = how === 0 ? '▼ タップまたはキーで閉じる' :
+                                   how === 1 ? '▼ アイテムをタップして選択' :
+                                               '▼ アイテムをタップして選択、Enterで決定';
 
         const selectedItems = [];
 
@@ -551,8 +551,40 @@ function selectMenuItems(winId, how) {
             div.dataset.idx = idx;
             const keyChar = item.ch || String.fromCharCode(97 + idx);
             div.innerHTML = `<span class="key">${keyChar})</span> ${item.str || ''}`;
+
+            // タップ/クリックで選択
+            function onItemSelect(e) {
+                e.stopPropagation();
+                if (how === 0 /* PICK_NONE */) {
+                    cleanup([]);
+                } else if (how === 1 /* PICK_ONE */) {
+                    cleanup([{ item: item.identifier, count: -1 }]);
+                } else {
+                    // PICK_ANY: トグル
+                    const existing = selectedItems.findIndex(s => s.item === item.identifier);
+                    if (existing >= 0) {
+                        selectedItems.splice(existing, 1);
+                    } else {
+                        selectedItems.push({ item: item.identifier, count: -1 });
+                    }
+                    updateMenuDisplay();
+                }
+            }
+            div.addEventListener('touchend', (e) => { e.preventDefault(); onItemSelect(e); });
+            div.addEventListener('click', onItemSelect);
+
             menuItemsEl.appendChild(div);
         });
+
+        // PICK_ANY 用: メニュー外タップで決定
+        if (how === 2) {
+            menuOverlay.addEventListener('touchend', function onOverlayTap(e) {
+                if (e.target === menuOverlay) {
+                    menuOverlay.removeEventListener('touchend', onOverlayTap);
+                    cleanup(selectedItems);
+                }
+            });
+        }
 
         menuOverlay.classList.add('active');
 
