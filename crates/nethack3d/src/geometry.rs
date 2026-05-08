@@ -204,36 +204,55 @@ pub fn build_dungeon(
     }
 }
 
-/// プレイヤーキャラクターのジオメトリ (小さい発光 @ 人型)
+/// 軸整列ボックス (6面すべて描画) — どの角度から見ても立体的
+fn push_box(
+    verts: &mut Vec<Vertex>, idxs: &mut Vec<u32>,
+    x0: f32, y0: f32, z0: f32,
+    x1: f32, y1: f32, z1: f32,
+    col: [f32; 4],
+) {
+    // 上面
+    push_quad(verts, idxs, [x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1], col);
+    // 下面
+    push_quad(verts, idxs, [x0,y0,z1],[x1,y0,z1],[x1,y0,z0],[x0,y0,z0], col);
+    // 南面 (+z)
+    push_quad(verts, idxs, [x0,y1,z1],[x1,y1,z1],[x1,y0,z1],[x0,y0,z1], col);
+    // 北面 (-z)
+    push_quad(verts, idxs, [x1,y1,z0],[x0,y1,z0],[x0,y0,z0],[x1,y0,z0], col);
+    // 西面 (-x)
+    push_quad(verts, idxs, [x0,y1,z1],[x0,y1,z0],[x0,y0,z0],[x0,y0,z1], col);
+    // 東面 (+x)
+    push_quad(verts, idxs, [x1,y1,z0],[x1,y1,z1],[x1,y0,z1],[x1,y0,z0], col);
+}
+
+/// プレイヤーキャラクター (ボックス人型 — どの角度でも立体的)
 pub fn build_player(
     verts: &mut Vec<Vertex>, idxs: &mut Vec<u32>,
     px: f32, pz: f32, time: f32,
 ) {
-    let col_body = [0.6, 0.8, 1.0, 3.0_f32]; // 青白発光
-    let col_head = [1.0, 0.9, 0.7, 3.0_f32]; // 頭部
-    let bob = (time * 3.5).sin() * 0.03;
+    let bob = (time * 3.2).sin() * 0.025;
 
-    // 体 (細長い柱)
-    let bx = px; let bz = pz;
-    let bs = 0.13;
-    let bh = 0.5 + bob;
+    // 胴体ボックス
+    let col_body = [0.50, 0.70, 1.00, 3.0_f32]; // 青白発光
+    push_box(verts, idxs,
+        px - 0.14, 0.0,        pz - 0.10,
+        px + 0.14, 0.46 + bob, pz + 0.10,
+        col_body);
+
+    // 頭部ボックス
+    let col_head = [1.00, 0.88, 0.72, 3.0_f32]; // 肌色発光
+    let head_y0 = 0.50 + bob;
+    let head_y1 = 0.74 + bob;
+    push_box(verts, idxs,
+        px - 0.11, head_y0, pz - 0.11,
+        px + 0.11, head_y1, pz + 0.11,
+        col_head);
+
+    // 足元の光輪 (小さい発光床クワッド)
     push_quad(verts, idxs,
-        [bx-bs,bh,bz+bs],[bx+bs,bh,bz+bs],[bx+bs,0.0,bz+bs],[bx-bs,0.0,bz+bs], col_body);
-    push_quad(verts, idxs,
-        [bx+bs,bh,bz-bs],[bx-bs,bh,bz-bs],[bx-bs,0.0,bz-bs],[bx+bs,0.0,bz-bs], col_body);
-    push_quad(verts, idxs,
-        [bx-bs,bh,bz-bs],[bx-bs,bh,bz+bs],[bx-bs,0.0,bz+bs],[bx-bs,0.0,bz-bs], col_body);
-    push_quad(verts, idxs,
-        [bx+bs,bh,bz+bs],[bx+bs,bh,bz-bs],[bx+bs,0.0,bz-bs],[bx+bs,0.0,bz+bs], col_body);
-    // 頭部 (小さい四角)
-    let hs = 0.10;
-    let hy0 = bh + 0.02; let hy1 = bh + 0.22 + bob * 2.0;
-    push_quad(verts, idxs,
-        [bx-hs,hy1,bz+hs],[bx+hs,hy1,bz+hs],[bx+hs,hy0,bz+hs],[bx-hs,hy0,bz+hs], col_head);
-    push_quad(verts, idxs,
-        [bx+hs,hy1,bz-hs],[bx-hs,hy1,bz-hs],[bx-hs,hy0,bz-hs],[bx+hs,hy0,bz-hs], col_head);
-    // 足元光
-    push_quad(verts, idxs,
-        [bx-0.2,0.01,bz-0.2],[bx+0.2,0.01,bz-0.2],[bx+0.2,0.01,bz+0.2],[bx-0.2,0.01,bz+0.2],
-        [0.5,0.6,1.0,3.0]);
+        [px-0.18, 0.005, pz-0.18],
+        [px+0.18, 0.005, pz-0.18],
+        [px+0.18, 0.005, pz+0.18],
+        [px-0.18, 0.005, pz+0.18],
+        [0.4, 0.55, 1.0, 3.0]);
 }
