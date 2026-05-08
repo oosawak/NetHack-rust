@@ -1337,7 +1337,7 @@ function askYN(query, resp, def) {
     return new Promise(resolve => {
         ynQueryEl.textContent = query;
         ynBtnsEl.innerHTML = '';
-        const defCode = def ? def.charCodeAt(0) : 'n'.charCodeAt(0);
+        const defCode = typeof def === 'number' ? def : (def ? def.charCodeAt(0) : 'n'.charCodeAt(0));
         const validKeys = (resp || 'yn').toLowerCase();
 
         function finish(code) {
