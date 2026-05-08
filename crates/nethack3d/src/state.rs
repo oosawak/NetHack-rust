@@ -112,7 +112,23 @@ impl Nethack3dState {
         }
         build_player(&mut verts, &mut idxs, self.vis_x, self.vis_z, self.time);
 
+        // TOP視点: 明るい真上ライトを追加してダンジョン全体を照らす
+        let (fog_col, is_top) = if matches!(self.cam_mode, CameraMode::Top) {
+            ([0.18_f32, 0.15, 0.12, 1.0], true)
+        } else {
+            ([0.0_f32, 0.0, 0.0, 1.0], false)
+        };
+
+        if is_top {
+            // 太陽光: プレイヤー真上から広い範囲を照らす (強度12.0, 減衰なし)
+            lights.insert(0, Light {
+                pos: [self.vis_x + 0.5, 2.5, self.vis_z + 0.5, 0.0],
+                col: [1.0, 0.97, 0.88, 12.0],
+            });
+        }
+
         // ライトパッド (4個に合わせる)
+        lights.truncate(4);
         while lights.len() < 4 {
             lights.push(Light { pos: [0.0;4], col: [0.0;4] });
         }
@@ -122,10 +138,10 @@ impl Nethack3dState {
         let uni = Uni {
             vp,
             time: self.time,
-            warp: if matches!(self.cam_mode, CameraMode::Top) { 1.0 } else { 0.0 },
+            warp: 0.0,
             pad: [0.0; 2],
             lights: [lights[0], lights[1], lights[2], lights[3]],
-            fog_col: [0.0, 0.0, 0.0, 1.0],
+            fog_col,
         };
 
         // 描画

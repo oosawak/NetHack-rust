@@ -69,8 +69,7 @@ fn fs_main(v: VOut) -> @location(0) vec4<f32> {
         light_acc  += lcol * att;
     }
 
-    // u.warp = 0.0: TPS/FPS (通常)、1.0: TOP (明るい俯瞰)
-    let ambient = 0.06 + u.warp * 1.50;
+    let ambient = 0.06;
 
     // 石壁: グレイン効果
     if v.col.a > 1.5 {
@@ -80,8 +79,8 @@ fn fs_main(v: VOut) -> @location(0) vec4<f32> {
         rgb = rgb * grain;
     }
 
-    // フォグ: TOP時は密度を大幅に下げて遠景まで見えるようにする
-    let fog_density = 0.08 * (1.0 - u.warp * 0.89);
+    // フォグ
+    let fog_density = 0.08;
     let fog = exp(-fog_density * fog_density * v.depth * v.depth);
     let fog_floor = clamp(v.world_y * 2.0, 0.0, 1.0);
     let fog_final = fog * (0.7 + fog_floor * 0.3);
