@@ -873,16 +873,12 @@ function update3dMap() {
 
     nethack3d.set_map_nethack3d(tiles, dungeonW, dungeonH);
     if (foundPX >= 0) {
-        // 実際に動いた方向からfacingを計算 (キー押下時ではなく移動後に更新)
+        // NetHack はプレイヤーの向きなし: カメラ固定
         if (prevPlayer3dX >= 0) {
             const dx = foundPX - player3dX;
             const dz = foundPZ - player3dZ;
             if (dx !== 0 || dz !== 0) {
-                playerFacing = deltaToFacing(dx, dz);
-                // 移動したのでカメラヨーをリセット
-                camYawOffset = 0;
-                nethack3d.reset_cam_yaw_offset_nethack3d?.();
-                dbg(`moved dx=${dx} dz=${dz} → facing=${playerFacing}`);
+                dbg(`moved dx=${dx} dz=${dz}`);
             }
         }
         prevPlayer3dX = player3dX;
