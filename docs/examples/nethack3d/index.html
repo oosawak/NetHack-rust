@@ -688,6 +688,11 @@ const TILE_KOBOLD     = 23;
 const TILE_NYMPH      = 24;
 const TILE_VAMPIRE    = 25;
 const TILE_LICH       = 26;
+const TILE_YETI       = 27;
+const TILE_ANGEL      = 28;
+const TILE_CENTAUR    = 29;
+const TILE_GIANT      = 30;
+const TILE_WRAITH     = 31;
 
 // ━━ モンスターtier テーブル ━━
 // NetHack各キャラの強さを 0=小型 1=通常 2=大型 3=ボス の4段階で表す
@@ -700,7 +705,7 @@ const MONSTER_TIER = {
     'o':1,'p':1,'q':1,'s':1,'w':1,'x':1,'z':1,
     'G':1,'J':1,'K':1,'M':1,'P':1,'R':1,'W':1,'Y':1,'Z':1,
     // tier 2: 大型 (1.35×)
-    't':2,'u':2,'C':2,'E':2,'H':2,'N':2,'O':2,'Q':2,'S':2,'T':2,'X':2,
+    't':2,'u':2,'C':2,'E':2,'H':2,'N':2,'O':2,'Q':2,'S':2,'T':2,'X':2,'Y':2,
     // tier 3: ボス (2.0×, 黄金オーラ付き)
     'A':3,'D':3,'I':3,'L':3,'U':3,'V':3,
 };
@@ -716,6 +721,11 @@ function charToTile(ch) {
     // モンスター: tierを上位ビットに埋め込む
     const tier = MONSTER_TIER[ch] ?? 1;
     const tierBits = tier << 5;
+    if (ch === 'Y')               return TILE_YETI    | tierBits; // イエティ
+    if (ch === 'A')               return TILE_ANGEL   | tierBits; // 天使
+    if (ch === 'C')               return TILE_CENTAUR | tierBits; // ケンタウルス
+    if (ch === 'H')               return TILE_GIANT   | tierBits; // 巨人
+    if (ch === 'W' || ch === 'w') return TILE_WRAITH  | tierBits; // レイス/幽霊
     if (ch === 'l')               return TILE_LEPRECHAUN | tierBits; // レプラコーン
     if (ch === 'k' || ch === 'K') return TILE_KOBOLD    | tierBits; // コボルド
     if (ch === 'n' || ch === 'N') return TILE_NYMPH     | tierBits; // ニンフ
@@ -914,7 +924,7 @@ function update3dMap() {
             if (ch === '@') { foundPX = dx; foundPZ = dy; }
             // エンティティ収集 (タップ情報用) — tierビットをマスクして比較
             const bt = t & 0x1F;
-            if (bt === TILE_MONSTER || bt === TILE_DOG || bt === TILE_CAT || bt === TILE_RAT || bt === TILE_BAT || bt === TILE_SLIME || bt === TILE_ORC || bt === TILE_ZOMBIE || bt === TILE_SNAKE || bt === TILE_EYE || bt === TILE_UNICORN || bt === TILE_TROLL || bt === TILE_DRAGON || bt === TILE_LEPRECHAUN || bt === TILE_KOBOLD || bt === TILE_NYMPH || bt === TILE_VAMPIRE || bt === TILE_LICH || bt === TILE_ITEM ||
+            if (bt === TILE_MONSTER || bt === TILE_DOG || bt === TILE_CAT || bt === TILE_RAT || bt === TILE_BAT || bt === TILE_SLIME || bt === TILE_ORC || bt === TILE_ZOMBIE || bt === TILE_SNAKE || bt === TILE_EYE || bt === TILE_UNICORN || bt === TILE_TROLL || bt === TILE_DRAGON || bt === TILE_LEPRECHAUN || bt === TILE_KOBOLD || bt === TILE_NYMPH || bt === TILE_VAMPIRE || bt === TILE_LICH || bt === TILE_YETI || bt === TILE_ANGEL || bt === TILE_CENTAUR || bt === TILE_GIANT || bt === TILE_WRAITH || bt === TILE_ITEM ||
                 bt === TILE_STAIRS_U || bt === TILE_STAIRS_D || bt === TILE_PLAYER) {
                 entityList.push({ tx: dx, tz: dy, ch, t });
             }
