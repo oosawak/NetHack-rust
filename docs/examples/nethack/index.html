@@ -277,8 +277,15 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const MAP_W = 80, MAP_H = 24;
-const FONT_W = 10, FONT_H = 18;  // セルサイズ（ピクセル）
-const FONT_SIZE = 16;
+let FONT_W, FONT_H, FONT_SIZE;
+
+function calcCellSize() {
+    const availW = Math.min(window.innerWidth - 8, 800);
+    FONT_W = Math.max(4, Math.floor(availW / MAP_W));
+    FONT_H = Math.round(FONT_W * 1.8);
+    FONT_SIZE = Math.max(6, Math.round(FONT_W * 1.5));
+}
+calcCellSize();
 
 // NetHack カラーパレット（CLR_xxx）
 const NH_COLORS = [
@@ -319,11 +326,17 @@ const GLYPH_COLOR_OFFSET = 16;
 
 // ━━ Canvas セットアップ ━━
 const canvas = document.getElementById('map-canvas');
-canvas.width  = MAP_W * FONT_W;
-canvas.height = MAP_H * FONT_H;
 const ctx = canvas.getContext('2d');
-ctx.font = `${FONT_SIZE}px 'Courier New', monospace`;
-ctx.textBaseline = 'top';
+
+function resizeCanvas() {
+    calcCellSize();
+    canvas.width  = MAP_W * FONT_W;
+    canvas.height = MAP_H * FONT_H;
+    ctx.font = `${FONT_SIZE}px 'Courier New', monospace`;
+    ctx.textBaseline = 'top';
+}
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); renderMap(); });
 
 // ━━ ゲーム状態 ━━
 const mapTiles = new Array(MAP_H).fill(null).map(() =>
@@ -352,6 +365,8 @@ function showMessage(str) {
 
 // ━━ キャンバス描画 ━━
 function renderMap() {
+    ctx.font = `${FONT_SIZE}px 'Courier New', monospace`;
+    ctx.textBaseline = 'top';
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     for (let y = 0; y < MAP_H; y++) {
