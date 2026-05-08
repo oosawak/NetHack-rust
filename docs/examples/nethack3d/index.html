@@ -252,7 +252,22 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 .menu-action-btn.confirm { background: #042; border-color: #0f0; color: #0f0; }
 .menu-action-btn.cancel  { background: #200; border-color: #f44; color: #f44; }
 
-/* 隠しモバイル入力 */
+/* 入力待ちインジケーター */
+#input-ready {
+    position: fixed;
+    top: 46px; right: 8px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #444;
+    z-index: 30;
+    transition: background 0.2s;
+}
+#input-ready.active {
+    background: #0f0;
+    box-shadow: 0 0 6px #0f0;
+    animation: blink 1s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 #mobile-input {
     position: fixed;
     opacity: 0;
@@ -384,6 +399,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 
 <!-- カメラ切替ボタン -->
 <button id="cam-btn" title="Tab: カメラ切替">📷 TPS</button>
+<!-- 入力待ちインジケーター (緑点滅=入力待ち) -->
+<div id="input-ready" title="入力待機中"></div>
 
 <!-- ミニマップ (TPS/FPS時に右上表示) -->
 <div id="minimap-wrap">
@@ -656,6 +673,20 @@ resizeCanvas3d();
 window.addEventListener('resize', resizeCanvas3d);
 
 // ━━ 3D 更新: mapTilesから3Dタイル配列を構築してRust WASMに渡す ━━
+let prevPlayer3dX = -1, prevPlayer3dZ = -1; // facing計算用
+
+function deltaToFacing(dx, dz) {
+    if (dx === 0 && dz < 0) return 0; // N
+    if (dx > 0 && dz < 0) return 4;  // NE
+    if (dx > 0 && dz === 0) return 1; // E
+    if (dx > 0 && dz > 0) return 5;  // SE
+    if (dx === 0 && dz > 0) return 2; // S
+    if (dx < 0 && dz > 0) return 6;  // SW
+    if (dx < 0 && dz === 0) return 3; // W
+    if (dx < 0 && dz < 0) return 7;  // NW
+    return playerFacing;
+}
+
 function update3dMap() {
     if (!nethack3d) return;
     const dungeonH = MAP_H - MAP_Y_OFFSET; // 21行
@@ -676,6 +707,17 @@ function update3dMap() {
 
     nethack3d.set_map_nethack3d(tiles, dungeonW, dungeonH);
     if (foundPX >= 0) {
+        // 実際に動いた方向からfacingを計算 (キー押下時ではなく移動後に更新)
+        if (prevPlayer3dX >= 0) {
+            const dx = foundPX - player3dX;
+            const dz = foundPZ - player3dZ;
+            if (dx !== 0 || dz !== 0) {
+                playerFacing = deltaToFacing(dx, dz);
+                dbg(`moved dx=${dx} dz=${dz} → facing=${playerFacing}`);
+            }
+        }
+        prevPlayer3dX = player3dX;
+        prevPlayer3dZ = player3dZ;
         player3dX = foundPX;
         player3dZ = foundPZ;
     }
@@ -729,20 +771,20 @@ if (keyboardBtnBar) keyboardBtnBar.addEventListener('click', () => focusMobileIn
 // canvas3d のタップはゲーム操作用。⌨️ボタンで明示的に開く。
 
 function sendKey(keyCode) {
-    // 移動キーでfacing更新
-    if (KEY_FACING[keyCode] !== undefined) {
-        playerFacing = KEY_FACING[keyCode];
-        if (nethack3d) {
-            nethack3d.set_player_nethack3d(player3dX, player3dZ, playerFacing);
-        }
-    }
+    // ゲームにキーを送る。facing更新はupdate3dMap()で実際の移動後に行う
     if (keyResolve) {
         const resolve = keyResolve;
         keyResolve = null;
+        setInputReady(false);
         resolve(keyCode);
     } else {
         keyQueue.push(keyCode);
     }
+}
+
+// 入力待ちインジケーター
+function setInputReady(ready) {
+    document.getElementById('input-ready')?.classList.toggle('active', ready);
 }
 
 function nethackKeyCode(e) {
@@ -809,7 +851,10 @@ document.querySelectorAll('.nav-btn[data-key]').forEach(btn => {
 function waitForKey() {
     return new Promise(resolve => {
         if (keyQueue.length > 0) resolve(keyQueue.shift());
-        else keyResolve = resolve;
+        else {
+            setInputReady(true);
+            keyResolve = resolve;
+        }
     });
 }
 
