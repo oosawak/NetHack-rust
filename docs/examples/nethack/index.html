@@ -196,6 +196,26 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
 .nav-btn.yn { background: #220; color: #ff0; border-color: #ff0; }
 .nav-btn.enter { background: #020; color: #0f0; border-color: #0f0; }
 .nav-btn.esc { background: #200; color: #f44; border-color: #f44; }
+#debug-panel {
+    background: #001;
+    border: 1px solid #0af;
+    color: #0af;
+    font-size: 10px;
+    padding: 4px 6px;
+    width: 100%;
+    max-width: 800px;
+    min-height: 60px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin-top: 2px;
+    display: none;
+}
+#debug-toggle {
+    font-size: 11px;
+    color: #555;
+    cursor: pointer;
+    margin-top: 2px;
+}
 
 </style>
 </head>
@@ -207,6 +227,8 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
     <canvas id="map-canvas"></canvas>
     <div id="keyboard-hint">📱 タップしてキーボードを表示</div>
     <div id="status"></div>
+    <div id="debug-toggle" onclick="document.getElementById('debug-panel').style.display = document.getElementById('debug-panel').style.display==='none'?'block':'none'">🔍 デバッグ情報</div>
+    <div id="debug-panel"></div>
 </div>
 
 <!-- モバイル用隠し入力 -->
@@ -310,7 +332,17 @@ const mapTiles = new Array(MAP_H).fill(null).map(() =>
 let wasmModule = null;
 let mapDirty = false;
 
-// ━━ メッセージ ━━
+// ━━ デバッグ ━━
+const debugPanel = document.getElementById('debug-panel');
+let debugLines = [];
+let glyphCallCount = 0;
+let glyphSample = null;
+function dbg(msg) {
+    debugLines.push(msg);
+    if (debugLines.length > 20) debugLines.shift();
+    debugPanel.textContent = debugLines.join('\n');
+}
+
 const messagesEl = document.getElementById('messages');
 const statusEl = document.getElementById('status');
 function showMessage(str) {
@@ -645,6 +677,8 @@ async function nethackCallback(name, ...args) {
     case 'shim_init_nhwindows':
         document.getElementById('loading').style.display = 'none';
         document.getElementById('game-container').style.display = 'flex';
+        document.getElementById('debug-panel').style.display = 'block';
+        dbg('init_nhwindows: game started');
         canvas.focus();
         focusMobileInput();
         return;
@@ -706,12 +740,18 @@ async function nethackCallback(name, ...args) {
         const [winid, x, y, glyphPtr, bkGlyphPtr] = args;
         if (!glyphPtr) return;
         const Module = wasmModule;
-        // glyph_info からキャラクターと色を読む
         const ttychar   = Module.getValue(glyphPtr + GLYPH_TTYCHAR_OFFSET, 'i32');
         const colorIdx  = Module.getValue(glyphPtr + GLYPH_COLOR_OFFSET, 'i32');
         const ch = ttychar > 0 && ttychar < 128 ? String.fromCharCode(ttychar) : ' ';
         const color = NH_COLORS[colorIdx & 0xf] || '#aaa';
         setTile(x, y, ch, color, '#000');
+        glyphCallCount++;
+        // 最初の数個だけデバッグ表示
+        if (glyphCallCount <= 5) {
+            dbg(`glyph[${glyphCallCount}] xy=(${x},${y}) ptr=0x${glyphPtr.toString(16)} ttychar=${ttychar}(${ch}) color=${colorIdx}`);
+        } else if (glyphCallCount === 6) {
+            dbg(`... ${glyphCallCount}+ glyph calls (mapDirty=${mapDirty})`);
+        }
         return;
     }
 
@@ -745,10 +785,13 @@ async function nethackCallback(name, ...args) {
 
     // ── 入力 ──
     case 'shim_nhgetch':
+        // キー待ち前に必ずマップを描画する
+        if (mapDirty) renderMap();
+        dbg(`nhgetch wait (glyphCalls so far: ${glyphCallCount})`);
         return await waitForKey();
 
     case 'shim_nh_poskey': {
-        // 位置指定キー（移動など）: キー + 座標（未使用）
+        if (mapDirty) renderMap();
         const key = await waitForKey();
         return key;
     }
@@ -825,7 +868,8 @@ async function nethackCallback(name, ...args) {
     // ── 同期 ──
     case 'shim_mark_synch':
     case 'shim_wait_synch':
-        if (mapDirty) renderMap();
+        dbg(`synch called: mapDirty=${mapDirty} glyphCalls=${glyphCallCount}`);
+        renderMap();  // 常にレンダリング（mapDirty チェックなし）
         return;
 
     case 'shim_delay_output':
