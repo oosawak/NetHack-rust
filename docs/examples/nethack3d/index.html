@@ -936,7 +936,7 @@ function focusMobileInput() {
     mobileInput.setSelectionRange(SENTINEL.length, SENTINEL.length);
     mobileInput.focus();
 }
-keyboardBtn.addEventListener('click', () => focusMobileInput());
+keyboardBtn?.addEventListener('click', () => focusMobileInput());
 const keyboardBtnBar = document.getElementById('keyboard-btn-bar');
 if (keyboardBtnBar) keyboardBtnBar.addEventListener('click', () => focusMobileInput());
 
