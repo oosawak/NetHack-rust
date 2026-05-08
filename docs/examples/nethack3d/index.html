@@ -699,6 +699,12 @@ const TILE_VAMP_BAT   = 34;
 const TILE_GNOME      = 35;
 const TILE_STALKER    = 36;
 const TILE_XORN       = 37;
+const TILE_MIMIC      = 38;
+const TILE_HOBGOBLIN  = 39;
+const TILE_RUST_MON   = 40;
+const TILE_QUASIT     = 41;
+const TILE_GRID_BUG   = 42;
+const TILE_GOLEM      = 43;
 
 // ━━ モンスターtier テーブル ━━
 // NetHack各キャラの強さを 0=小型 1=通常 2=大型 3=ボス の4段階で表す
@@ -738,6 +744,12 @@ function charToTile(ch) {
     if (ch === 'G')               return TILE_GNOME   | tierBits; // ノーム
     if (ch === 'I')               return TILE_STALKER | tierBits; // 透明ストーカー
     if (ch === 'X')               return TILE_XORN    | tierBits; // クゾーン
+    if (ch === 'm')               return TILE_MIMIC   | tierBits; // ミミック
+    if (ch === 'h')               return TILE_HOBGOBLIN | tierBits; // ホブゴブリン
+    if (ch === 'R')               return TILE_RUST_MON | tierBits; // ラストモンスター
+    if (ch === 'q')               return TILE_QUASIT  | tierBits; // クアジット
+    if (ch === 'x')               return TILE_GRID_BUG| tierBits; // グリッドバグ
+    if (ch === '\'')              return TILE_GOLEM   | tierBits; // ゴーレム
     if (ch === 'l')               return TILE_LEPRECHAUN | tierBits; // レプラコーン
     if (ch === 'k' || ch === 'K') return TILE_KOBOLD    | tierBits; // コボルド
     if (ch === 'n' || ch === 'N') return TILE_NYMPH     | tierBits; // ニンフ
@@ -936,7 +948,7 @@ function update3dMap() {
             if (ch === '@') { foundPX = dx; foundPZ = dy; }
             // エンティティ収集 (タップ情報用) — tierビットをマスクして比較
             const bt = t & 0x3F;
-            if (bt === TILE_MONSTER || bt === TILE_DOG || bt === TILE_CAT || bt === TILE_RAT || bt === TILE_BAT || bt === TILE_SLIME || bt === TILE_ORC || bt === TILE_ZOMBIE || bt === TILE_SNAKE || bt === TILE_EYE || bt === TILE_UNICORN || bt === TILE_TROLL || bt === TILE_DRAGON || bt === TILE_LEPRECHAUN || bt === TILE_KOBOLD || bt === TILE_NYMPH || bt === TILE_VAMPIRE || bt === TILE_LICH || bt === TILE_YETI || bt === TILE_ANGEL || bt === TILE_CENTAUR || bt === TILE_GIANT || bt === TILE_WRAITH || bt === TILE_DEMON || bt === TILE_MUMMY || bt === TILE_VAMP_BAT || bt === TILE_GNOME || bt === TILE_STALKER || bt === TILE_XORN || bt === TILE_ITEM ||
+            if (bt === TILE_MONSTER || bt === TILE_DOG || bt === TILE_CAT || bt === TILE_RAT || bt === TILE_BAT || bt === TILE_SLIME || bt === TILE_ORC || bt === TILE_ZOMBIE || bt === TILE_SNAKE || bt === TILE_EYE || bt === TILE_UNICORN || bt === TILE_TROLL || bt === TILE_DRAGON || bt === TILE_LEPRECHAUN || bt === TILE_KOBOLD || bt === TILE_NYMPH || bt === TILE_VAMPIRE || bt === TILE_LICH || bt === TILE_YETI || bt === TILE_ANGEL || bt === TILE_CENTAUR || bt === TILE_GIANT || bt === TILE_WRAITH || bt === TILE_DEMON || bt === TILE_MUMMY || bt === TILE_VAMP_BAT || bt === TILE_GNOME || bt === TILE_STALKER || bt === TILE_XORN || bt === TILE_MIMIC || bt === TILE_HOBGOBLIN || bt === TILE_RUST_MON || bt === TILE_QUASIT || bt === TILE_GRID_BUG || bt === TILE_GOLEM || bt === TILE_ITEM ||
                 bt === TILE_STAIRS_U || bt === TILE_STAIRS_D || bt === TILE_PLAYER) {
                 entityList.push({ tx: dx, tz: dy, ch, t });
             }
