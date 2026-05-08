@@ -1,0 +1,15 @@
+{
+  "name": "nethack3d",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "nethack3d_bg.wasm",
+    "nethack3d.js",
+    "nethack3d.d.ts"
+  ],
+  "main": "nethack3d.js",
+  "types": "nethack3d.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

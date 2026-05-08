@@ -110,7 +110,7 @@ impl Nethack3dState {
                 &mut verts, &mut idxs, &mut lights,
             );
         }
-        build_player(&mut verts, &mut idxs, self.vis_x, self.vis_z, self.time);
+        build_player(&mut verts, &mut idxs, self.vis_x + 0.5, self.vis_z + 0.5, self.time);
 
         // TOP視点: 明るい真上ライトを追加してダンジョン全体を照らす
         let (fog_col, is_top) = if matches!(self.cam_mode, CameraMode::Top) {
