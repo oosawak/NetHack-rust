@@ -515,6 +515,7 @@ const TILE_STAIRS_U= 6;
 const TILE_STAIRS_D= 7;
 const TILE_MONSTER = 8;
 const TILE_ITEM    = 9;
+const TILE_DOG     = 10;
 
 function charToTile(ch) {
     if (ch === ' ') return TILE_EMPTY;
@@ -525,6 +526,7 @@ function charToTile(ch) {
     if (ch === '@') return TILE_PLAYER;
     if (ch === '<') return TILE_STAIRS_U;
     if (ch === '>') return TILE_STAIRS_D;
+    if (ch === 'd') return TILE_DOG;   // 犬は特別扱い!
     if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) return TILE_MONSTER;
     if ('$:!?/=%*'.includes(ch)) return TILE_ITEM;
     // その他の床っぽい文字

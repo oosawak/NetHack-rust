@@ -43,6 +43,7 @@ pub const TILE_STAIRS_U: u8 = 6;
 pub const TILE_STAIRS_D: u8 = 7;
 pub const TILE_MONSTER:  u8 = 8;
 pub const TILE_ITEM:     u8 = 9;
+pub const TILE_DOG:      u8 = 10;
 
 /// 1×1×1 ボックスの1面 (quad) を4頂点+6インデックスで追加
 pub fn push_quad(
@@ -59,7 +60,7 @@ pub fn push_quad(
 
 /// タイルが「通行可能」かどうか (床・廊下・プレイヤーなど)
 pub fn is_passable(t: u8) -> bool {
-    matches!(t, TILE_FLOOR|TILE_CORRIDOR|TILE_PLAYER|TILE_STAIRS_U|TILE_STAIRS_D|TILE_MONSTER|TILE_ITEM)
+    matches!(t, TILE_FLOOR|TILE_CORRIDOR|TILE_PLAYER|TILE_STAIRS_U|TILE_STAIRS_D|TILE_MONSTER|TILE_ITEM|TILE_DOG)
 }
 pub fn is_solid(t: u8) -> bool {
     t == TILE_WALL || t == TILE_EMPTY
@@ -131,9 +132,7 @@ pub fn build_dungeon(
             // 床
             push_quad(verts, idxs,
                 [x0,0.0,z0],[x1,0.0,z0],[x1,0.0,z1],[x0,0.0,z1], fc);
-            // 天井
-            push_quad(verts, idxs,
-                [x0,wall_h,z1],[x1,wall_h,z1],[x1,wall_h,z0],[x0,wall_h,z0], ceil_col);
+            // 天井は描画しない (TOP視点で真っ黒になるため)
 
             // 壁: passable セルから隣の solid セルへの面を追加
             if is_passable(t) {
@@ -159,37 +158,221 @@ pub fn build_dungeon(
                 }
             }
 
-            // アイテム: 小さい発光クワッド
+            // アイテム: 浮かぶ菱形ビルボード (2枚クロス) — 見る角度によらず光る
             if t == TILE_ITEM {
                 let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
-                let s = 0.18;
+                // タイル位置でボブのタイミングをずらす
+                let phase = cx * 0.8 + cz * 1.1;
+                let fy = 0.38 + (time * 1.6 + phase).sin() * 0.07;
+                let s = 0.20;
+                // XZ平面の菱形 (水平回転ディスク感)
                 push_quad(verts, idxs,
-                    [cx-s,0.18,cz-s],[cx+s,0.18,cz-s],[cx+s,0.18,cz+s],[cx-s,0.18,cz+s],
+                    [cx, fy, cz-s],[cx+s, fy, cz],[cx, fy, cz+s],[cx-s, fy, cz],
+                    item_col);
+                // 縦菱形 X方向
+                push_quad(verts, idxs,
+                    [cx,   fy+s*0.8, cz],
+                    [cx+s, fy,       cz],
+                    [cx,   fy-s*0.8, cz],
+                    [cx-s, fy,       cz],
+                    item_col);
+                // 縦菱形 Z方向
+                push_quad(verts, idxs,
+                    [cx, fy+s*0.8, cz  ],
+                    [cx, fy,       cz+s],
+                    [cx, fy-s*0.8, cz  ],
+                    [cx, fy,       cz-s],
                     item_col);
             }
 
-            // モンスター: 赤い発光柱
+            // モンスター: クロスビルボード (Doomスタイル — どの角度でも見える)
             if t == TILE_MONSTER {
                 let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
-                let s = 0.20; let top = 0.9;
-                // 南面
+                let phase = cx * 0.9 + cz * 0.7;
+                // 位置ごとに微妙にボブタイミングをずらして生き生き感
+                let bob = (time * 2.6 + phase).sin() * 0.025;
+                let s   = 0.24;
+                let top = 0.90 + bob;
+                let bot = 0.04;
+                // 赤みを位置ハッシュで少し変化させる
+                let hue_r = 0.75 + ((tx*3 + ty*7) % 5) as f32 * 0.05;
+                let hue_g = 0.10 + ((tx+ty*2) % 4) as f32 * 0.04;
+                let mc = [hue_r, hue_g, 0.10, 3.0_f32];
+                // X方向スラブ (Z軸に平行な板)
                 push_quad(verts, idxs,
-                    [cx-s,top,cz+s],[cx+s,top,cz+s],[cx+s,0.0,cz+s],[cx-s,0.0,cz+s], monster_col);
+                    [cx-s, top, cz],[cx+s, top, cz],
+                    [cx+s, bot, cz],[cx-s, bot, cz], mc);
+                // Z方向スラブ (X軸に平行な板)
                 push_quad(verts, idxs,
-                    [cx+s,top,cz-s],[cx-s,top,cz-s],[cx-s,0.0,cz-s],[cx+s,0.0,cz-s], monster_col);
+                    [cx, top, cz-s],[cx, top, cz+s],
+                    [cx, bot, cz+s],[cx, bot, cz-s], mc);
+                // 目 (上部に小さい黄色発光点)
+                let ey = top - 0.12;
+                let es = 0.05;
                 push_quad(verts, idxs,
-                    [cx-s,top,cz-s],[cx-s,top,cz+s],[cx-s,0.0,cz+s],[cx-s,0.0,cz-s], monster_col);
-                push_quad(verts, idxs,
-                    [cx+s,top,cz+s],[cx+s,top,cz-s],[cx+s,0.0,cz-s],[cx+s,0.0,cz+s], monster_col);
+                    [cx-es, ey, cz-0.01],[cx+es, ey, cz-0.01],
+                    [cx+es, ey-es*0.6, cz-0.01],[cx-es, ey-es*0.6, cz-0.01],
+                    [1.0, 1.0, 0.3, 3.0]);
                 if lights.len() < 4 {
                     lights.push(Light {
-                        pos: [cx, 0.5, cz, (tx+ty) as f32 * 0.37],
-                        col: [1.0, 0.1, 0.1, 1.5],
+                        pos: [cx, 0.6, cz, phase],
+                        col: [1.0, 0.15, 0.10, 1.8],
                     });
                 }
             }
 
-            // 部屋コーナー付近にたまにトーチライト
+            // 犬 (TILE_DOG): ボックスを積み重ねた本格3Dモデル
+            // 胴体・頭・鼻・4本脚・耳2枚・しっぽ で構成
+            if t == TILE_DOG {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx * 13 + ty * 7) as f32;
+
+                // ── サイズバリエーション (位置ハッシュで3種) ──
+                let size_var = (tx * 5 + ty * 3) % 3; // 0=小型, 1=中型, 2=大型
+                let sc = match size_var {
+                    0 => 0.60_f32, // 小さな子犬
+                    1 => 0.85_f32, // 普通の犬
+                    _ => 1.10_f32, // 大きな犬
+                };
+
+                // ── カラーバリエーション (毛色5種) ──
+                let fur = match (tx * 7 + ty * 11) % 5 {
+                    0 => [0.82, 0.62, 0.28, 1.0_f32], // 茶色
+                    1 => [0.92, 0.88, 0.75, 1.0_f32], // クリーム/白
+                    2 => [0.22, 0.18, 0.12, 1.0_f32], // 黒
+                    3 => [0.65, 0.38, 0.18, 1.0_f32], // 濃い茶
+                    _ => [0.75, 0.72, 0.65, 1.0_f32], // グレー
+                };
+                // 腹側はすこし明るく
+                let belly = [fur[0]*1.25, fur[1]*1.25, fur[2]*1.25, fur[3]];
+                // 鼻・口は黒っぽく
+                let nose_col  = [0.15, 0.10, 0.08, 1.0_f32];
+                // 目は黒 + 光点 (emissive)
+                let eye_col   = [0.08, 0.06, 0.04, 3.0_f32];
+                let eye_shine = [1.0,  1.0,  0.9,  3.0_f32];
+
+                // ── アニメーション ──
+                // 全体を少しバウンドさせる (4足なので細かく)
+                let walk = (time * 3.8 + hash * 0.4).sin();
+                let base_y = (time * 7.5 + hash * 0.4).sin().abs() * 0.018 * sc; // 4足歩行リズム
+                // しっぽを左右に振る
+                let wag = (time * 6.0 + hash * 0.8).sin();
+
+                // スケール済み寸法
+                let bw = 0.18 * sc; // 胴体 X 半幅
+                let bd = 0.10 * sc; // 胴体 Z 半幅
+                let by0 = 0.16 * sc + base_y; // 胴体底
+                let by1 = 0.30 * sc + base_y; // 胴体天
+                // 胴体を前後に伸ばす
+                let bfr = 0.22 * sc; // 前方 (+Z)
+                let bbk = 0.22 * sc; // 後方 (-Z)
+
+                // ── 胴体 ──
+                push_box(verts, idxs,
+                    cx-bw, by0, cz-bbk,
+                    cx+bw, by1, cz+bfr, fur);
+
+                // ── 頭 (前方やや上) ──
+                let hx = 0.13 * sc; // 頭 X 半幅
+                let hz = 0.12 * sc; // 頭 Z 半幅 (奥行き)
+                let hy0 = by1 - 0.04 * sc;
+                let hy1 = hy0 + 0.22 * sc;
+                let hcz = cz + bfr + hz * 0.6; // 頭の中心 Z
+                push_box(verts, idxs,
+                    cx-hx, hy0, hcz-hz,
+                    cx+hx, hy1, hcz+hz*0.5, fur);
+
+                // ── 鼻 (頭の前面中央) ──
+                let nw = 0.055 * sc;
+                let nh = 0.045 * sc;
+                let nd = 0.04 * sc;
+                let ny0 = hy0 + (hy1-hy0)*0.28;
+                push_box(verts, idxs,
+                    cx-nw, ny0, hcz+hz*0.5,
+                    cx+nw, ny0+nh, hcz+hz*0.5+nd, nose_col);
+
+                // ── 耳 (2枚, 頭の上に薄い板) ──
+                let ew = 0.055 * sc;
+                let eh = 0.09 * sc;
+                let ed = 0.025 * sc; // 耳の厚み
+                let earz = hcz - hz * 0.1;
+                let eary0 = hy1;
+                // 耳の色は少し暗め
+                let ear_col = [fur[0]*0.8, fur[1]*0.7, fur[2]*0.7, fur[3]];
+                // 左耳 (すこし外に傾けるため X をずらす)
+                push_box(verts, idxs,
+                    cx - hx*0.9 - ew, eary0, earz-ed,
+                    cx - hx*0.9,      eary0+eh, earz+ed, ear_col);
+                // 右耳
+                push_box(verts, idxs,
+                    cx + hx*0.9,      eary0, earz-ed,
+                    cx + hx*0.9 + ew, eary0+eh, earz+ed, ear_col);
+
+                // ── 目 2個 ──
+                let ex_off = hx * 0.52;
+                let ey_h   = hy0 + (hy1-hy0)*0.62;
+                let ez_f   = hcz + hz * 0.45;
+                let esz    = 0.03 * sc; // 目のサイズ
+                // 左目
+                push_box(verts, idxs,
+                    cx-ex_off-esz, ey_h-esz, ez_f,
+                    cx-ex_off+esz, ey_h+esz, ez_f+esz*0.6, eye_col);
+                push_box(verts, idxs, // ハイライト
+                    cx-ex_off, ey_h+esz*0.3, ez_f+esz*0.55,
+                    cx-ex_off+esz*0.5, ey_h+esz*0.8, ez_f+esz*0.7, eye_shine);
+                // 右目
+                push_box(verts, idxs,
+                    cx+ex_off-esz, ey_h-esz, ez_f,
+                    cx+ex_off+esz, ey_h+esz, ez_f+esz*0.6, eye_col);
+                push_box(verts, idxs,
+                    cx+ex_off, ey_h+esz*0.3, ez_f+esz*0.55,
+                    cx+ex_off+esz*0.5, ey_h+esz*0.8, ez_f+esz*0.7, eye_shine);
+
+                // ── 4本脚 ──
+                let lw = 0.055 * sc; // 脚の半幅
+                let lh = by0;        // 脚の高さ (地面〜胴体底)
+                let leg_col = [fur[0]*0.88, fur[1]*0.88, fur[2]*0.88, fur[3]];
+                // 前脚は歩行アニメ (左右逆位相)
+                let leg_front_y = lh * (1.0 + walk * 0.06);
+                let leg_back_y  = lh * (1.0 - walk * 0.06);
+                // 前左脚
+                push_box(verts, idxs,
+                    cx-bw+lw*0.3, 0.0, cz+bfr-lw*2.0-lw*0.5,
+                    cx-bw+lw*0.3+lw*2.0, leg_front_y, cz+bfr-lw*0.5, leg_col);
+                // 前右脚
+                push_box(verts, idxs,
+                    cx+bw-lw*0.3-lw*2.0, 0.0, cz+bfr-lw*2.0-lw*0.5,
+                    cx+bw-lw*0.3, leg_back_y, cz+bfr-lw*0.5, leg_col);
+                // 後左脚
+                push_box(verts, idxs,
+                    cx-bw+lw*0.3, 0.0, cz-bbk+lw*0.5,
+                    cx-bw+lw*0.3+lw*2.0, leg_back_y, cz-bbk+lw*0.5+lw*2.0, leg_col);
+                // 後右脚
+                push_box(verts, idxs,
+                    cx+bw-lw*0.3-lw*2.0, 0.0, cz-bbk+lw*0.5,
+                    cx+bw-lw*0.3, leg_front_y, cz-bbk+lw*0.5+lw*2.0, leg_col);
+
+                // ── しっぽ (後方, 左右に振る) ──
+                let tail_x = cx + wag * 0.13 * sc;
+                let tail_y0 = by1 * 0.7;
+                let tail_y1 = by1 * 0.7 + 0.22 * sc;
+                let tail_z0 = cz - bbk - 0.14 * sc;
+                let tail_z1 = cz - bbk - 0.02 * sc;
+                let tail_col = [fur[0]*0.92, fur[1]*0.78, fur[2]*0.65, fur[3]];
+                push_box(verts, idxs,
+                    tail_x - 0.03*sc, tail_y0, tail_z0,
+                    tail_x + 0.03*sc, tail_y1, tail_z1, tail_col);
+
+                // ── フレンドリーな暖色ライト ──
+                if lights.len() < 4 {
+                    lights.push(Light {
+                        pos: [cx, by1, cz, hash],
+                        col: [1.0, 0.80, 0.40, 1.2 * sc],
+                    });
+                }
+            }
+
+
             if t == TILE_FLOOR && tx % 8 == 0 && ty % 6 == 0 && torch_count < 2 {
                 torch_count += 1;
                 let fade = ((time * 2.3 + tx as f32 * 0.7).sin() * 0.15 + 1.0).max(0.4);
