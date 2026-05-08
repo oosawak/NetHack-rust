@@ -44,6 +44,12 @@ pub const TILE_STAIRS_D: u8 = 7;
 pub const TILE_MONSTER:  u8 = 8;
 pub const TILE_ITEM:     u8 = 9;
 pub const TILE_DOG:      u8 = 10;
+pub const TILE_CAT:      u8 = 11;
+pub const TILE_RAT:      u8 = 12;
+pub const TILE_BAT:      u8 = 13;
+pub const TILE_SLIME:    u8 = 14;
+pub const TILE_ORC:      u8 = 15;
+pub const TILE_ZOMBIE:   u8 = 16;
 
 /// 1×1×1 ボックスの1面 (quad) を4頂点+6インデックスで追加
 pub fn push_quad(
@@ -60,7 +66,7 @@ pub fn push_quad(
 
 /// タイルが「通行可能」かどうか (床・廊下・プレイヤーなど)
 pub fn is_passable(t: u8) -> bool {
-    matches!(t, TILE_FLOOR|TILE_CORRIDOR|TILE_PLAYER|TILE_STAIRS_U|TILE_STAIRS_D|TILE_MONSTER|TILE_ITEM|TILE_DOG)
+    matches!(t, TILE_FLOOR|TILE_CORRIDOR|TILE_PLAYER|TILE_STAIRS_U|TILE_STAIRS_D|TILE_MONSTER|TILE_ITEM|TILE_DOG|TILE_CAT|TILE_RAT|TILE_BAT|TILE_SLIME|TILE_ORC|TILE_ZOMBIE)
 }
 pub fn is_solid(t: u8) -> bool {
     t == TILE_WALL || t == TILE_EMPTY
@@ -372,6 +378,422 @@ pub fn build_dungeon(
                 }
             }
 
+            // 猫 (TILE_CAT): 犬より可愛く! 大きな目・尖り耳・ひげ・上向きしっぽ
+            if t == TILE_CAT {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx * 17 + ty * 11) as f32;
+
+                // ── サイズ (猫は全体的にスリム) ──
+                let sc = match (tx * 5 + ty * 3) % 3 {
+                    0 => 0.55_f32, // 子猫
+                    1 => 0.75_f32, // 普通
+                    _ => 0.90_f32, // 大きめ
+                };
+
+                // ── 毛色5種 ──
+                let fur: [f32;4] = match (tx * 11 + ty * 7) % 5 {
+                    0 => [0.92, 0.50, 0.14, 1.0], // オレンジタビー
+                    1 => [0.10, 0.08, 0.09, 1.0], // 黒猫
+                    2 => [0.96, 0.94, 0.91, 1.0], // 白猫
+                    3 => [0.56, 0.53, 0.48, 1.0], // グレー縞
+                    _ => [0.72, 0.40, 0.14, 1.0], // 茶トラ
+                };
+                let belly = [(fur[0]*1.3).min(1.0), (fur[1]*1.3).min(1.0), (fur[2]*1.3).min(1.0), 1.0];
+                let ear_in  = [0.92_f32, 0.55, 0.58, 1.0]; // 耳内側ピンク
+                let ear_out = [fur[0]*0.82, fur[1]*0.72, fur[2]*0.72, 1.0];
+                let pink    = [0.95_f32, 0.65, 0.68, 1.0]; // 鼻・肉球ピンク
+                let wh_col  = [0.96_f32, 0.96, 0.96, 1.0]; // ひげ
+                // 目: 色付き虹彩・黒瞳・強ハイライト
+                let eye_iris: [f32;4] = match (tx * 3 + ty * 5) % 3 {
+                    0 => [0.18, 0.72, 0.28, 3.0], // 翠の目
+                    1 => [0.82, 0.58, 0.08, 3.0], // 金の目
+                    _ => [0.12, 0.42, 0.78, 3.0], // 青い目
+                };
+                let eye_col   = [0.06_f32, 0.04, 0.07, 3.0];
+                let eye_shine = [1.0_f32,  0.98, 0.95, 4.0]; // 強エミッシブ
+
+                // ── アニメーション ──
+                let walk      = (time * 4.0 + hash * 0.4).sin();
+                let base_y    = (time * 8.0 + hash * 0.5).sin().abs() * 0.012 * sc;
+                let tail_sway = (time * 2.5 + hash * 0.6).sin();
+
+                // ── 胴体 (スリム) ──
+                let bw = 0.13 * sc;
+                let by0 = 0.13 * sc + base_y;
+                let by1 = 0.25 * sc + base_y;
+                let bfr = 0.19 * sc;
+                let bbk = 0.19 * sc;
+                push_box(verts, idxs, cx-bw, by0, cz-bbk, cx+bw, by1, cz+bfr, fur);
+                // お腹ハイライト
+                push_box(verts, idxs,
+                    cx-bw*0.75, by0, cz-bbk*0.6,
+                    cx+bw*0.75, by0+0.008, cz+bfr*0.6, belly);
+
+                // ── 頭 (丸く大きめ) ──
+                let hx = 0.125 * sc;
+                let hz = 0.105 * sc;
+                let hy0 = by1 - 0.018 * sc;
+                let hy1 = hy0 + 0.195 * sc;
+                let hcz = cz + bfr + hz * 0.45;
+                push_box(verts, idxs, cx-hx, hy0, hcz-hz, cx+hx, hy1, hcz+hz*0.45, fur);
+
+                // ── 耳 (尖った縦長ボックス + ピンク内側) ──
+                let ew = 0.042 * sc;
+                let eh = 0.115 * sc; // 犬より高く尖る
+                let ez  = hcz - hz * 0.5;
+                let ey0 = hy1 - 0.01 * sc;
+                // 左耳
+                push_box(verts, idxs,
+                    cx - hx*0.72 - ew, ey0, ez - ew,
+                    cx - hx*0.72,      ey0 + eh, ez + ew, ear_out);
+                push_box(verts, idxs, // 内側ピンク
+                    cx - hx*0.72 - ew*0.55, ey0 + eh*0.15, ez - ew*0.25,
+                    cx - hx*0.72 - ew*0.05, ey0 + eh*0.82, ez + ew*0.25, ear_in);
+                // 右耳
+                push_box(verts, idxs,
+                    cx + hx*0.72,      ey0, ez - ew,
+                    cx + hx*0.72 + ew, ey0 + eh, ez + ew, ear_out);
+                push_box(verts, idxs,
+                    cx + hx*0.72 + ew*0.05, ey0 + eh*0.15, ez - ew*0.25,
+                    cx + hx*0.72 + ew*0.55, ey0 + eh*0.82, ez + ew*0.25, ear_in);
+
+                // ── 鼻 (小さいピンク) ──
+                let nw = 0.028 * sc;
+                let nh = 0.022 * sc;
+                let ny0 = hy0 + (hy1-hy0)*0.30;
+                push_box(verts, idxs,
+                    cx-nw, ny0, hcz+hz*0.38,
+                    cx+nw, ny0+nh, hcz+hz*0.38+0.028*sc, pink);
+
+                // ── ひげ (水平に伸びる細いボックス、左右各2本) ──
+                let wy  = ny0 + nh*0.4;
+                let wtk = 0.005 * sc; // 太さ
+                let wlen = 0.13 * sc;
+                // 左2本
+                push_box(verts, idxs,
+                    cx - hx - wlen, wy + nh*0.5, hcz+hz*0.25,
+                    cx - hx*0.05,   wy + nh*0.5 + wtk, hcz+hz*0.25+wtk, wh_col);
+                push_box(verts, idxs,
+                    cx - hx - wlen, wy - nh*0.1, hcz+hz*0.25,
+                    cx - hx*0.05,   wy - nh*0.1 + wtk, hcz+hz*0.25+wtk, wh_col);
+                // 右2本
+                push_box(verts, idxs,
+                    cx + hx*0.05, wy + nh*0.5, hcz+hz*0.25,
+                    cx + hx + wlen, wy + nh*0.5 + wtk, hcz+hz*0.25+wtk, wh_col);
+                push_box(verts, idxs,
+                    cx + hx*0.05, wy - nh*0.1, hcz+hz*0.25,
+                    cx + hx + wlen, wy - nh*0.1 + wtk, hcz+hz*0.25+wtk, wh_col);
+
+                // ── 目 (猫の命! 大きく・虹彩・瞳孔・ハイライト2点) ──
+                let ex_off = hx * 0.45;
+                let eyz    = hy0 + (hy1-hy0)*0.57;
+                let ezf    = hcz + hz * 0.38;
+                let es     = 0.044 * sc; // 犬より大きい!
+                // 左目: 虹彩→縦瞳孔→ハイライト×2
+                push_box(verts, idxs,
+                    cx-ex_off-es, eyz-es*0.92, ezf,
+                    cx-ex_off+es, eyz+es*0.92, ezf+es*0.45, eye_iris);
+                push_box(verts, idxs, // 縦長瞳孔
+                    cx-ex_off-es*0.28, eyz-es*0.88, ezf+0.001,
+                    cx-ex_off+es*0.28, eyz+es*0.88, ezf+es*0.5, eye_col);
+                push_box(verts, idxs, // メインハイライト
+                    cx-ex_off+es*0.12, eyz+es*0.22, ezf+es*0.42,
+                    cx-ex_off+es*0.72, eyz+es*0.80, ezf+es*0.58, eye_shine);
+                push_box(verts, idxs, // サブハイライト
+                    cx-ex_off-es*0.52, eyz-es*0.08, ezf+es*0.42,
+                    cx-ex_off-es*0.10, eyz+es*0.30, ezf+es*0.58, eye_shine);
+                // 右目
+                push_box(verts, idxs,
+                    cx+ex_off-es, eyz-es*0.92, ezf,
+                    cx+ex_off+es, eyz+es*0.92, ezf+es*0.45, eye_iris);
+                push_box(verts, idxs,
+                    cx+ex_off-es*0.28, eyz-es*0.88, ezf+0.001,
+                    cx+ex_off+es*0.28, eyz+es*0.88, ezf+es*0.5, eye_col);
+                push_box(verts, idxs,
+                    cx+ex_off-es*0.72, eyz+es*0.22, ezf+es*0.42,
+                    cx+ex_off-es*0.12, eyz+es*0.80, ezf+es*0.58, eye_shine);
+                push_box(verts, idxs,
+                    cx+ex_off+es*0.10, eyz-es*0.08, ezf+es*0.42,
+                    cx+ex_off+es*0.52, eyz+es*0.30, ezf+es*0.58, eye_shine);
+
+                // ── 4本脚 (細くしなやか) ──
+                let lw = 0.038 * sc;
+                let lh = by0;
+                let leg_col = [fur[0]*0.88, fur[1]*0.88, fur[2]*0.88, fur[3]];
+                let lfy = lh * (1.0 + walk * 0.08);
+                let lby = lh * (1.0 - walk * 0.08);
+                push_box(verts, idxs,
+                    cx-bw+lw*0.3, 0.0, cz+bfr-lw*2.0,
+                    cx-bw+lw*0.3+lw*2.0, lfy, cz+bfr, leg_col);
+                push_box(verts, idxs,
+                    cx+bw-lw*0.3-lw*2.0, 0.0, cz+bfr-lw*2.0,
+                    cx+bw-lw*0.3, lby, cz+bfr, leg_col);
+                push_box(verts, idxs,
+                    cx-bw+lw*0.3, 0.0, cz-bbk,
+                    cx-bw+lw*0.3+lw*2.0, lby, cz-bbk+lw*2.0, leg_col);
+                push_box(verts, idxs,
+                    cx+bw-lw*0.3-lw*2.0, 0.0, cz-bbk,
+                    cx+bw-lw*0.3, lfy, cz-bbk+lw*2.0, leg_col);
+
+                // ── しっぽ (猫は上に立てる! 2セグメント+毛先) ──
+                let tw = 0.022 * sc;
+                let tail_col = [fur[0]*0.86, fur[1]*0.78, fur[2]*0.73, 1.0];
+                let tail_tip = [(fur[0]*1.35).min(1.0), (fur[1]*1.35).min(1.0), (fur[2]*1.35).min(1.0), 1.0];
+                let tx1 = cx + tail_sway * 0.04 * sc;
+                // 根本 (後ろ下から上へ)
+                push_box(verts, idxs,
+                    tx1-tw, by0*0.55, cz-bbk-0.04*sc,
+                    tx1+tw, by1+0.10*sc, cz-bbk+0.04*sc, tail_col);
+                // 中段 (上に伸びて少し前へ傾く)
+                let tx2 = tx1 + tail_sway * 0.07 * sc;
+                push_box(verts, idxs,
+                    tx2-tw*0.85, by1+0.08*sc, cz-bbk-0.09*sc,
+                    tx2+tw*0.85, by1+0.30*sc, cz-bbk+0.02*sc, tail_col);
+                // 毛先 (ふわっと大きめ)
+                let tx3 = tx2 + tail_sway * 0.05 * sc;
+                push_box(verts, idxs,
+                    tx3-tw*1.4, by1+0.27*sc, cz-bbk-0.11*sc,
+                    tx3+tw*1.4, by1+0.40*sc, cz-bbk+0.03*sc, tail_tip);
+
+                // ── 神秘的な青白いライト ──
+                if lights.len() < 4 {
+                    lights.push(Light {
+                        pos: [cx, by1, cz, hash],
+                        col: [0.75, 0.85, 1.0, 1.1 * sc],
+                    });
+                }
+            }
+
+
+            // ━━ ネズミ (TILE_RAT): 丸い体・大きな耳・長いしっぽ ━━
+            if t == TILE_RAT {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx * 13 + ty * 9) as f32;
+                let sc = match (tx * 5 + ty * 3) % 3 { 0 => 0.50_f32, 1 => 0.65, _ => 0.80 };
+                let fur: [f32;4] = match (tx * 7 + ty * 11) % 4 {
+                    0 => [0.55, 0.52, 0.48, 1.0], // グレー
+                    1 => [0.72, 0.48, 0.28, 1.0], // 茶
+                    2 => [0.92, 0.90, 0.86, 1.0], // 白
+                    _ => [0.18, 0.15, 0.12, 1.0], // 黒
+                };
+                let pink      = [0.90_f32, 0.60, 0.62, 1.0];
+                let eye_col   = [0.05_f32, 0.04, 0.05, 3.0];
+                let eye_shine = [1.0_f32,  0.95, 0.90, 3.0];
+                let walk  = (time * 5.0 + hash * 0.4).sin();
+                let base_y = (time * 10.0 + hash).sin().abs() * 0.010 * sc;
+                let sniff  = (time * 3.5 + hash).sin() * 0.007 * sc;
+                let tail_curl = (time * 2.0 + hash).sin();
+                // 胴体
+                let bw = 0.10 * sc; let by0 = 0.06*sc+base_y; let by1 = 0.17*sc+base_y;
+                let bfr = 0.14*sc; let bbk = 0.14*sc;
+                push_box(verts, idxs, cx-bw, by0, cz-bbk, cx+bw, by1, cz+bfr, fur);
+                // 頭
+                let hx = 0.082*sc; let hz = 0.075*sc;
+                let hy0 = by1-0.008*sc; let hy1 = hy0+0.135*sc;
+                let hcz = cz+bfr+hz*0.45;
+                push_box(verts, idxs, cx-hx, hy0+sniff, hcz-hz, cx+hx, hy1+sniff, hcz+hz*0.45, fur);
+                // 大きな丸耳 (ネズミの特徴!)
+                let ew = 0.055*sc; let eh = 0.068*sc;
+                let ear_y0 = hy1+sniff; let ear_z = hcz-hz*0.25;
+                let ear_col = [fur[0]*0.80, fur[1]*0.72, fur[2]*0.72, 1.0];
+                let ear_in  = [pink[0]*0.95, pink[1]*0.90, pink[2]*0.90, 1.0];
+                push_box(verts, idxs, cx-hx*0.55-ew, ear_y0, ear_z-ew, cx-hx*0.55, ear_y0+eh, ear_z+ew, ear_col);
+                push_box(verts, idxs, cx-hx*0.55-ew*0.72, ear_y0+eh*0.12, ear_z-ew*0.5, cx-hx*0.55-ew*0.12, ear_y0+eh*0.85, ear_z+ew*0.5, ear_in);
+                push_box(verts, idxs, cx+hx*0.55, ear_y0, ear_z-ew, cx+hx*0.55+ew, ear_y0+eh, ear_z+ew, ear_col);
+                push_box(verts, idxs, cx+hx*0.55+ew*0.12, ear_y0+eh*0.12, ear_z-ew*0.5, cx+hx*0.55+ew*0.72, ear_y0+eh*0.85, ear_z+ew*0.5, ear_in);
+                // 鼻 (ピンク・ひくひく)
+                let nz = hcz+hz*0.40;
+                push_box(verts, idxs, cx-0.017*sc, hy0+(hy1-hy0)*0.25+sniff, nz, cx+0.017*sc, hy0+(hy1-hy0)*0.42+sniff, nz+0.022*sc, pink);
+                // 目 (小さなビーズ目)
+                let ex_off = hx*0.46; let eyz = hy0+(hy1-hy0)*0.66+sniff; let ezf = hcz+hz*0.33; let es = 0.022*sc;
+                push_box(verts, idxs, cx-ex_off-es, eyz-es, ezf, cx-ex_off+es, eyz+es, ezf+es*0.55, eye_col);
+                push_box(verts, idxs, cx-ex_off+es*0.05, eyz+es*0.08, ezf+es*0.45, cx-ex_off+es*0.72, eyz+es*0.82, ezf+es*0.65, eye_shine);
+                push_box(verts, idxs, cx+ex_off-es, eyz-es, ezf, cx+ex_off+es, eyz+es, ezf+es*0.55, eye_col);
+                push_box(verts, idxs, cx+ex_off-es*0.72, eyz+es*0.08, ezf+es*0.45, cx+ex_off-es*0.05, eyz+es*0.82, ezf+es*0.65, eye_shine);
+                // 4本脚
+                let lw = 0.027*sc; let lh = by0; let leg_col = [fur[0]*0.85, fur[1]*0.85, fur[2]*0.85, fur[3]];
+                let lfy = lh*(1.0+walk*0.10); let lby = lh*(1.0-walk*0.10);
+                push_box(verts, idxs, cx-bw+lw*0.2, 0.0, cz+bfr-lw*2.0, cx-bw+lw*0.2+lw*2.0, lfy, cz+bfr, leg_col);
+                push_box(verts, idxs, cx+bw-lw*0.2-lw*2.0, 0.0, cz+bfr-lw*2.0, cx+bw-lw*0.2, lby, cz+bfr, leg_col);
+                push_box(verts, idxs, cx-bw+lw*0.2, 0.0, cz-bbk, cx-bw+lw*0.2+lw*2.0, lby, cz-bbk+lw*2.0, leg_col);
+                push_box(verts, idxs, cx+bw-lw*0.2-lw*2.0, 0.0, cz-bbk, cx+bw-lw*0.2, lfy, cz-bbk+lw*2.0, leg_col);
+                // しっぽ (長くて細い、くるんと曲がる)
+                let tw = 0.016*sc; let tail_col = [pink[0]*0.78, pink[1]*0.58, pink[2]*0.58, 1.0];
+                push_box(verts, idxs, cx-tw, by0*0.45, cz-bbk-0.17*sc, cx+tw, by0*0.78, cz-bbk, tail_col);
+                let tc_x = cx + tail_curl*0.06*sc;
+                push_box(verts, idxs, tc_x-tw*0.75, by0*0.60, cz-bbk-0.28*sc, tc_x+tw*0.75, by0*0.82+0.04*sc, cz-bbk-0.16*sc, tail_col);
+                push_box(verts, idxs, tc_x-tw*0.55, by0*0.70, cz-bbk-0.34*sc, tc_x+tw*0.55, by0*0.75+0.06*sc, cz-bbk-0.27*sc, tail_col);
+                if lights.len() < 4 { lights.push(Light { pos:[cx,by1,cz,hash], col:[0.9,0.7,0.5,0.7*sc] }); }
+            }
+
+            // ━━ スライム (TILE_SLIME): ぷよぷよ笑顔ブロブ ━━
+            if t == TILE_SLIME {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx * 11 + ty * 13) as f32;
+                let sc = match (tx * 5 + ty * 3) % 2 { 0 => 0.85_f32, _ => 1.0 };
+                let slime_col: [f32;4] = match (tx * 7 + ty * 5) % 5 {
+                    0 => [0.28, 0.82, 0.22, 1.0], // 緑
+                    1 => [0.22, 0.32, 0.92, 1.0], // 青
+                    2 => [0.78, 0.22, 0.88, 1.0], // 紫
+                    3 => [0.90, 0.82, 0.12, 1.0], // 黄
+                    _ => [0.88, 0.38, 0.12, 1.0], // オレンジ
+                };
+                let slime_hi  = [(slime_col[0]*1.5).min(1.0), (slime_col[1]*1.5).min(1.0), (slime_col[2]*1.5).min(1.0), 3.0];
+                let eye_col   = [0.05_f32, 0.04, 0.06, 3.0];
+                let eye_shine = [1.0_f32,  1.0,  0.95, 4.0];
+                let mouth_col = [slime_col[0]*0.55, slime_col[1]*0.55, slime_col[2]*0.55, 1.0];
+                let wobble = (time * 3.2 + hash * 0.5).sin();
+                let pulse  = (time * 2.0 + hash * 0.3).sin() * 0.020 * sc;
+                let bw = (0.28 + wobble * 0.030) * sc;
+                let bh = (0.20 - wobble.abs() * 0.018) * sc + pulse;
+                let bd = (0.22 + wobble * 0.018) * sc;
+                // 本体
+                push_box(verts, idxs, cx-bw, 0.0, cz-bd, cx+bw, bh, cz+bd, slime_col);
+                // 頂部&横テカリ
+                push_box(verts, idxs, cx-bw*0.45, bh-0.008, cz-bd*0.45, cx+bw*0.45, bh+0.025*sc, cz+bd*0.45, slime_hi);
+                push_box(verts, idxs, cx+bw*0.50, bh*0.52, cz+bd*0.45, cx+bw*0.80, bh*0.72, cz+bd*0.68, slime_hi);
+                // 大きな目
+                let eyz = bh*0.62; let ezf = cz+bd*0.88; let es = 0.058*sc; let ex_off = bw*0.36;
+                push_box(verts, idxs, cx-ex_off-es, eyz-es, ezf, cx-ex_off+es, eyz+es, ezf+es*0.38, slime_col);
+                push_box(verts, idxs, cx-ex_off-es*0.82, eyz-es*0.82, ezf+0.002, cx-ex_off+es*0.82, eyz+es*0.82, ezf+es*0.42, eye_col);
+                push_box(verts, idxs, cx-ex_off+es*0.08, eyz+es*0.08, ezf+es*0.33, cx-ex_off+es*0.68, eyz+es*0.78, ezf+es*0.48, eye_shine);
+                push_box(verts, idxs, cx-ex_off-es*0.60, eyz-es*0.08, ezf+es*0.33, cx-ex_off-es*0.10, eyz+es*0.35, ezf+es*0.48, eye_shine);
+                push_box(verts, idxs, cx+ex_off-es, eyz-es, ezf, cx+ex_off+es, eyz+es, ezf+es*0.38, slime_col);
+                push_box(verts, idxs, cx+ex_off-es*0.82, eyz-es*0.82, ezf+0.002, cx+ex_off+es*0.82, eyz+es*0.82, ezf+es*0.42, eye_col);
+                push_box(verts, idxs, cx+ex_off-es*0.68, eyz+es*0.08, ezf+es*0.33, cx+ex_off-es*0.08, eyz+es*0.78, ezf+es*0.48, eye_shine);
+                push_box(verts, idxs, cx+ex_off+es*0.10, eyz-es*0.08, ezf+es*0.33, cx+ex_off+es*0.60, eyz+es*0.35, ezf+es*0.48, eye_shine);
+                // 笑顔の口 (横線+両端上がり)
+                push_box(verts, idxs, cx-es*0.95, eyz-es*1.12, ezf+0.001, cx+es*0.95, eyz-es*0.65, ezf+es*0.28, mouth_col);
+                push_box(verts, idxs, cx-es*1.10, eyz-es*0.80, ezf+0.001, cx-es*0.90, eyz-es*0.40, ezf+es*0.28, mouth_col);
+                push_box(verts, idxs, cx+es*0.90, eyz-es*0.80, ezf+0.001, cx+es*1.10, eyz-es*0.40, ezf+es*0.28, mouth_col);
+                if lights.len() < 4 { lights.push(Light { pos:[cx,bh*0.6,cz,hash], col:[slime_col[0],slime_col[1],slime_col[2],1.6*sc] }); }
+            }
+
+            // ━━ コウモリ (TILE_BAT): 羽ばたく・赤い目 ━━
+            if t == TILE_BAT {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx * 9 + ty * 15) as f32;
+                let sc = 0.72_f32;
+                let bat_col  = [0.12_f32, 0.08, 0.14, 1.0];
+                let wing_col = [0.20_f32, 0.10, 0.24, 1.0];
+                let fur_col  = [0.22_f32, 0.14, 0.17, 1.0];
+                let eye_col  = [0.92_f32, 0.12, 0.05, 3.0]; // 赤い目!
+                let eye_shine= [1.0_f32,  0.80, 0.50, 3.0];
+                let flap = (time * 8.5 + hash).sin();
+                let bob  = (time * 4.2 + hash).sin() * 0.042 * sc;
+                let base = 0.34*sc + bob;
+                // 胴体
+                push_box(verts, idxs, cx-0.078*sc, base, cz-0.085*sc, cx+0.078*sc, base+0.105*sc, cz+0.085*sc, fur_col);
+                // 頭
+                let hy0 = base+0.078*sc; let hy1 = hy0+0.088*sc; let hcz = cz+0.056*sc;
+                push_box(verts, idxs, cx-0.068*sc, hy0, hcz-0.060*sc, cx+0.068*sc, hy1, hcz+0.044*sc, bat_col);
+                // 大きな耳 (コウモリらしく縦長)
+                let ew = 0.028*sc; let eh = 0.074*sc; let ear_z = hcz-0.018*sc;
+                let ear_col = [0.16_f32, 0.08, 0.20, 1.0];
+                push_box(verts, idxs, cx-0.050*sc-ew, hy1, ear_z-ew*0.5, cx-0.050*sc, hy1+eh, ear_z+ew*0.5, ear_col);
+                push_box(verts, idxs, cx+0.050*sc, hy1, ear_z-ew*0.5, cx+0.050*sc+ew, hy1+eh, ear_z+ew*0.5, ear_col);
+                // 赤い目
+                let es = 0.019*sc; let eyz = hy0+(hy1-hy0)*0.55; let ezf = hcz+0.040*sc; let ex_off = 0.040*sc;
+                push_box(verts, idxs, cx-ex_off-es, eyz-es*0.70, ezf, cx-ex_off+es, eyz+es*0.70, ezf+es*0.58, eye_col);
+                push_box(verts, idxs, cx-ex_off+es*0.12, eyz+es*0.02, ezf+es*0.48, cx-ex_off+es*0.60, eyz+es*0.62, ezf+es*0.64, eye_shine);
+                push_box(verts, idxs, cx+ex_off-es, eyz-es*0.70, ezf, cx+ex_off+es, eyz+es*0.70, ezf+es*0.58, eye_col);
+                push_box(verts, idxs, cx+ex_off-es*0.60, eyz+es*0.02, ezf+es*0.48, cx+ex_off-es*0.12, eyz+es*0.62, ezf+es*0.64, eye_shine);
+                // 翼 (羽ばたきアニメ: 3段)
+                let wh = 0.024*sc; // 翼の厚み
+                let wr_y = base+0.058*sc; // 翼の付け根Y
+                let wt_y = wr_y + flap*0.115*sc; // 翼先端Y
+                // 左翼
+                let wl0 = cx-0.078*sc; let wl1 = wl0-0.155*sc; let wl2 = wl1-0.100*sc;
+                let wy1 = wr_y; let wy2 = wr_y+(wt_y-wr_y)*0.50; let wy3 = wt_y;
+                push_box(verts, idxs, wl1, wy1-wh, cz-0.055*sc, wl0, wy1+wh, cz+0.055*sc, wing_col);
+                push_box(verts, idxs, wl2, wy2-wh, cz-0.042*sc, wl1, wy2+wh, cz+0.042*sc, wing_col);
+                push_box(verts, idxs, wl2-0.075*sc, wy3-wh, cz-0.025*sc, wl2, wy3+wh, cz+0.025*sc, wing_col);
+                // 右翼
+                let wr0 = cx+0.078*sc; let wr1 = wr0+0.155*sc; let wr2 = wr1+0.100*sc;
+                push_box(verts, idxs, wr0, wy1-wh, cz-0.055*sc, wr1, wy1+wh, cz+0.055*sc, wing_col);
+                push_box(verts, idxs, wr1, wy2-wh, cz-0.042*sc, wr2, wy2+wh, cz+0.042*sc, wing_col);
+                push_box(verts, idxs, wr2, wy3-wh, cz-0.025*sc, wr2+0.075*sc, wy3+wh, cz+0.025*sc, wing_col);
+                if lights.len() < 4 { lights.push(Light { pos:[cx,base+0.06*sc,cz,hash], col:[0.6,0.2,0.8,0.9*sc] }); }
+            }
+
+            // ━━ オーク (TILE_ORC): 緑の戦士・牙・武器 ━━
+            if t == TILE_ORC {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx * 7 + ty * 13) as f32;
+                let sc = match (tx * 3 + ty * 5) % 2 { 0 => 0.92_f32, _ => 1.10 };
+                let skin_col   = [0.20_f32, 0.50, 0.14, 1.0];
+                let armor_col  = [0.32_f32, 0.28, 0.20, 1.0];
+                let eye_col    = [0.95_f32, 0.62, 0.05, 3.0]; // 黄色い目
+                let tusk_col   = [0.88_f32, 0.84, 0.72, 1.0];
+                let weapon_col = [0.52_f32, 0.50, 0.44, 1.0];
+                let bob   = (time * 3.5 + hash).sin().abs() * 0.014 * sc;
+                let swing = (time * 2.8 + hash).sin();
+                // 脚
+                push_box(verts, idxs, cx-0.14*sc, 0.0, cz-0.07*sc, cx-0.06*sc, 0.19*sc, cz+0.07*sc, armor_col);
+                push_box(verts, idxs, cx+0.06*sc, 0.0, cz-0.07*sc, cx+0.14*sc, 0.19*sc, cz+0.07*sc, armor_col);
+                // 胴体
+                let by0 = 0.17*sc; let by1 = by0+0.25*sc+bob;
+                push_box(verts, idxs, cx-0.17*sc, by0, cz-0.11*sc, cx+0.17*sc, by1, cz+0.11*sc, armor_col);
+                // 腕
+                push_box(verts, idxs, cx-0.24*sc, by0+0.04*sc, cz-0.062*sc, cx-0.17*sc, by1-0.04*sc, cz+0.062*sc, skin_col);
+                let arm_y = by0+0.10*sc+swing*0.06*sc;
+                push_box(verts, idxs, cx+0.17*sc, arm_y, cz-0.062*sc, cx+0.24*sc, by1-0.02*sc+swing*0.04*sc, cz+0.062*sc, skin_col);
+                // 頭
+                let hy0 = by1-0.012*sc; let hy1 = hy0+0.20*sc;
+                push_box(verts, idxs, cx-0.13*sc, hy0, cz-0.10*sc, cx+0.13*sc, hy1, cz+0.082*sc, skin_col);
+                // 牙 (下からはみ出る)
+                push_box(verts, idxs, cx-0.082*sc, hy0-0.058*sc, cz+0.058*sc, cx-0.038*sc, hy0, cz+0.090*sc, tusk_col);
+                push_box(verts, idxs, cx+0.038*sc, hy0-0.058*sc, cz+0.058*sc, cx+0.082*sc, hy0, cz+0.090*sc, tusk_col);
+                // 目 (黄色い)
+                let es = 0.030*sc; let eyz = hy0+(hy1-hy0)*0.58; let ezf = cz+0.068*sc;
+                push_box(verts, idxs, cx-0.068*sc-es, eyz-es*0.80, ezf, cx-0.068*sc+es, eyz+es*0.80, ezf+es*0.50, eye_col);
+                push_box(verts, idxs, cx+0.068*sc-es, eyz-es*0.80, ezf, cx+0.068*sc+es, eyz+es*0.80, ezf+es*0.50, eye_col);
+                // 武器 (右手)
+                let wx = cx+0.25*sc; let wy = by1+swing*0.08*sc;
+                push_box(verts, idxs, wx-0.018*sc, by0*0.4, cz-0.018*sc, wx+0.018*sc, wy+0.28*sc, cz+0.018*sc, weapon_col);
+                // 武器の刃
+                push_box(verts, idxs, wx-0.035*sc, wy+0.18*sc, cz-0.010*sc, wx+0.035*sc, wy+0.28*sc, cz+0.010*sc, [0.70,0.72,0.80,1.0]);
+                if lights.len() < 4 { lights.push(Light { pos:[cx,by1,cz,hash], col:[0.7,1.0,0.2,1.0*sc] }); }
+            }
+
+            // ━━ ゾンビ (TILE_ZOMBIE): 腐った肌・腕を前に・黄緑の目 ━━
+            if t == TILE_ZOMBIE {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx * 11 + ty * 5) as f32;
+                let sc = 1.0_f32;
+                let skin_col  = [0.50_f32, 0.56, 0.40, 1.0];
+                let cloth_col = [0.26_f32, 0.22, 0.16, 1.0];
+                let eye_col   = [0.82_f32, 0.95, 0.28, 3.0]; // 黄緑の光る目!
+                let bone_col  = [0.76_f32, 0.72, 0.58, 1.0];
+                let shamble   = (time * 2.2 + hash).sin();
+                let bob       = (time * 4.4 + hash).sin().abs() * 0.010;
+                let arm_reach = (time * 1.5 + hash).sin() * 0.048;
+                // 脚 (片方を引きずる)
+                let drag = shamble * 0.025;
+                push_box(verts, idxs, cx-0.13*sc, 0.0, cz-0.072*sc, cx-0.05*sc, 0.20*sc, cz+0.072*sc, cloth_col);
+                push_box(verts, idxs, cx+0.05*sc, drag.abs(), cz-0.072*sc+drag, cx+0.13*sc, 0.20*sc+drag.abs(), cz+0.072*sc+drag, cloth_col);
+                // 胴体
+                let by0 = 0.18*sc; let by1 = by0+0.26*sc+bob;
+                push_box(verts, idxs, cx-0.14*sc, by0, cz-0.10*sc, cx+0.14*sc, by1, cz+0.10*sc, cloth_col);
+                push_box(verts, idxs, cx-0.08*sc, by0+0.04*sc, cz+0.088*sc, cx+0.08*sc, by0+0.18*sc, cz+0.112*sc, skin_col);
+                // 腕 (ゾンビらしく両方前へ!)
+                let arm_z = cz+0.14*sc+arm_reach;
+                push_box(verts, idxs, cx-0.23*sc, by0+0.09*sc, cz+0.008*sc, cx-0.14*sc, by1-0.08*sc, arm_z, skin_col);
+                push_box(verts, idxs, cx+0.14*sc, by0+0.09*sc, cz+0.008*sc, cx+0.23*sc, by1-0.08*sc, arm_z, skin_col);
+                // 手 (骨っぽい)
+                push_box(verts, idxs, cx-0.24*sc, by0+0.08*sc, arm_z, cx-0.18*sc, by0+0.16*sc, arm_z+0.060*sc, bone_col);
+                push_box(verts, idxs, cx+0.18*sc, by0+0.08*sc, arm_z, cx+0.24*sc, by0+0.16*sc, arm_z+0.060*sc, bone_col);
+                // 頭
+                let hy0 = by1-0.018*sc; let hy1 = hy0+0.19*sc; let tilt = shamble*0.010;
+                push_box(verts, idxs, cx-0.12*sc+tilt, hy0, cz-0.092*sc, cx+0.12*sc+tilt, hy1, cz+0.072*sc, skin_col);
+                // ガタガタの歯
+                push_box(verts, idxs, cx-0.072*sc, hy0-0.008*sc, cz+0.048*sc, cx+0.072*sc, hy0+0.022*sc, cz+0.090*sc, bone_col);
+                // 黄緑の目 (光る!)
+                let es = 0.028*sc; let eyz = hy0+(hy1-hy0)*0.56; let ezf = cz+0.058*sc;
+                push_box(verts, idxs, cx-0.058*sc-es, eyz-es*0.70, ezf, cx-0.058*sc+es, eyz+es*0.70, ezf+es*0.48, eye_col);
+                push_box(verts, idxs, cx+0.058*sc-es, eyz-es*0.70, ezf, cx+0.058*sc+es, eyz+es*0.70, ezf+es*0.48, eye_col);
+                if lights.len() < 4 { lights.push(Light { pos:[cx,by1,cz,hash], col:[0.4,0.9,0.2,1.3] }); }
+            }
 
             if t == TILE_FLOOR && tx % 8 == 0 && ty % 6 == 0 && torch_count < 2 {
                 torch_count += 1;

@@ -672,6 +672,12 @@ const TILE_STAIRS_D= 7;
 const TILE_MONSTER = 8;
 const TILE_ITEM    = 9;
 const TILE_DOG     = 10;
+const TILE_CAT     = 11;
+const TILE_RAT     = 12;
+const TILE_BAT     = 13;
+const TILE_SLIME   = 14;
+const TILE_ORC     = 15;
+const TILE_ZOMBIE  = 16;
 
 function charToTile(ch) {
     if (ch === ' ') return TILE_EMPTY;
@@ -682,7 +688,13 @@ function charToTile(ch) {
     if (ch === '@') return TILE_PLAYER;
     if (ch === '<') return TILE_STAIRS_U;
     if (ch === '>') return TILE_STAIRS_D;
-    if (ch === 'd') return TILE_DOG;   // 犬は特別扱い!
+    if (ch === 'd') return TILE_DOG;            // 犬
+    if (ch === 'f' || ch === 'c') return TILE_CAT;  // 猫 (Felix/feline)
+    if (ch === 'r' || ch === 'R') return TILE_RAT;  // ネズミ
+    if (ch === 'b' || ch === 'B') return TILE_BAT;  // コウモリ
+    if (ch === 'j' || ch === 'P') return TILE_SLIME;// スライム/プディング
+    if (ch === 'o' || ch === 'O') return TILE_ORC;  // オーク
+    if (ch === 'z' || ch === 'Z') return TILE_ZOMBIE;// ゾンビ
     if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) return TILE_MONSTER;
     if ('$:!?/=%*'.includes(ch)) return TILE_ITEM;
     // その他の床っぽい文字
@@ -864,7 +876,7 @@ function update3dMap() {
             tiles[dy * dungeonW + dx] = t;
             if (ch === '@') { foundPX = dx; foundPZ = dy; }
             // エンティティ収集 (タップ情報用)
-            if (t === TILE_MONSTER || t === TILE_DOG || t === TILE_ITEM ||
+            if (t === TILE_MONSTER || t === TILE_DOG || t === TILE_CAT || t === TILE_RAT || t === TILE_BAT || t === TILE_SLIME || t === TILE_ORC || t === TILE_ZOMBIE || t === TILE_ITEM ||
                 t === TILE_STAIRS_U || t === TILE_STAIRS_D || t === TILE_PLAYER) {
                 entityList.push({ tx: dx, tz: dy, ch, t });
             }
