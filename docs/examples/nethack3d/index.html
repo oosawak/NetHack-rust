@@ -305,12 +305,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 
 /* ━━ ジョイスティック ━━ */
 #joy-zone {
-    position: fixed;
-    left: 0; bottom: 58px;
-    width: 52%; height: 52%;
-    z-index: 15;
-    touch-action: none;
-    -webkit-user-select: none; user-select: none;
+    display: none; /* 旧タッチゾーン: 不使用 */
 }
 #cam-zone {
     position: fixed;
@@ -320,16 +315,19 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     touch-action: none;
     -webkit-user-select: none; user-select: none;
 }
+/* 常時表示の固定ジョイスティック */
 #joy-outer {
     position: fixed;
+    left: 20px; bottom: 76px;
     width: 120px; height: 120px;
     border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.28);
-    background: rgba(0,0,0,0.38);
-    display: none;
-    pointer-events: none;
+    border: 2px solid rgba(255,255,255,0.35);
+    background: rgba(0,0,0,0.55);
+    display: block;
     z-index: 16;
-    transform: translate(-50%, -50%);
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    cursor: grab;
 }
 #joy-thumb {
     position: absolute;
@@ -341,6 +339,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     top: 50%; left: 50%;
     transform: translate(-50%,-50%);
     transition: background 0.1s;
+    pointer-events: none;
 }
 /* カメラスワイプ ヒント */
 #cam-zone-hint {
@@ -357,9 +356,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 }
 @media (pointer: coarse) {
     #cam-zone-hint { display: block; }
-    #joy-zone, #cam-zone { display: block; }
+    #cam-zone { display: block; }
 }
-#joy-zone, #cam-zone { display: none; }
 
 /* ━━ ミニバー (常時表示フッター) ━━ */
 #mini-bar {
@@ -1044,70 +1042,79 @@ function setKbdOpen(open) {
     kbdOpen = open;
     kbdPanel?.classList.toggle('open', open);
     kbdBtn?.classList.toggle('open', open);
-    // キーボードパネルが開いている間はジョイスティックゾーンを非表示
-    const joyZone = document.getElementById('joy-zone');
+    // キーボードパネルが開いている間はジョイスティックを非表示
+    const joyEl  = document.getElementById('joy-outer');
     const camZone = document.getElementById('cam-zone');
-    if (joyZone) joyZone.style.display = open ? 'none' : '';
-    if (camZone) camZone.style.display = open ? 'none' : '';
+    if (joyEl)  joyEl.style.visibility  = open ? 'hidden' : 'visible';
+    if (camZone) camZone.style.display   = open ? 'none' : '';
 }
 kbdBtn?.addEventListener('click', () => setKbdOpen(!kbdOpen));
 document.getElementById('keyboard-btn-bar')?.addEventListener('click', () => focusMobileInput());
 
-// ━━ ジョイスティック ━━
-const joyZone  = document.getElementById('joy-zone');
+// ━━ ジョイスティック (タッチ + マウス, 常時表示, カメラ基準) ━━
 const joyOuter = document.getElementById('joy-outer');
 const joyThumb = document.getElementById('joy-thumb');
-const JOY_R = 60;       // 外円半径 (px)
-const JOY_DEAD = 14;    // デッドゾーン半径
-let joyActive = false;
-let joyCX = 0, joyCY = 0; // 外円中心 (固定: タッチ開始点)
+const JOY_R    = 48;   // サム最大移動半径 (px)
+const JOY_DEAD = 12;   // デッドゾーン
+let joyActive  = false;
+let joyCX = 0, joyCY = 0;
 let joyTouchId = null;
 let joyKeyCode = null;
-let joyRepeat = null;
+let joyRepeat  = null;
+
+// ── カメラ基準キーリマップ ──
+// facing: 0=N 1=E 2=S 3=W 4=NE 5=SE 6=SW 7=NW
+// 列順: [k, j, h, l, y, u, b, n] → 変換後 char code
+const REMAP_TABLE = [
+    [107,106,104,108,121,117, 98,110], // N (変換なし)
+    [108,104,107,106,117,110,121, 98], // E (90°CW)
+    [106,107,108,104,110, 98,117,121], // S (180°)
+    [104,108,106,107, 98,121,110,117], // W (90°CCW)
+    [117, 98,121,110,107,108,104,106], // NE (45°CW)
+    [110,121,117, 98,108,106,107,104], // SE (135°CW)
+    [ 98,117,110,121,106,104,108,107], // SW (225°CW)
+    [121,110, 98,117,104,107,106,108], // NW (315°CW)
+];
+const REMAP_KEYS = [107,106,104,108,121,117,98,110]; // k,j,h,l,y,u,b,n
+function remapDirKey(code) {
+    const i = REMAP_KEYS.indexOf(code);
+    return i < 0 ? code : REMAP_TABLE[playerFacing][i];
+}
 
 function angleToMoveKey(dx, dy) {
-    // dy正=下=South。8方向NetHackキー
     const a = ((Math.atan2(dy, dx) * 180 / Math.PI) + 360) % 360;
-    if (a >= 337.5 || a < 22.5)  return 108; // E = l
-    if (a < 67.5)                 return 110; // SE = n
-    if (a < 112.5)                return 106; // S = j
-    if (a < 157.5)                return 98;  // SW = b
-    if (a < 202.5)                return 104; // W = h
-    if (a < 247.5)                return 121; // NW = y
-    if (a < 292.5)                return 107; // N = k
-    return 117;                               // NE = u
+    let raw;
+    if (a >= 337.5 || a < 22.5)  raw = 108; // E
+    else if (a < 67.5)            raw = 110; // SE
+    else if (a < 112.5)           raw = 106; // S
+    else if (a < 157.5)           raw =  98; // SW
+    else if (a < 202.5)           raw = 104; // W
+    else if (a < 247.5)           raw = 121; // NW
+    else if (a < 292.5)           raw = 107; // N
+    else                           raw = 117; // NE
+    return remapDirKey(raw);
 }
 
-function joyStart(cx, cy) {
-    joyActive = true;
-    joyCX = cx; joyCY = cy;
-    joyOuter.style.left = cx + 'px';
-    joyOuter.style.top  = cy + 'px';
-    joyOuter.style.display = 'block';
-    joyThumb.style.transform = 'translate(-50%,-50%)';
+function getJoyCenter() {
+    const r = joyOuter.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
-function joyMove(tx, ty) {
-    if (!joyActive) return;
+function joyMoveXY(tx, ty) {
     const dx = tx - joyCX, dy = ty - joyCY;
     const dist = Math.hypot(dx, dy);
     const clamp = Math.min(dist, JOY_R);
     const angle = Math.atan2(dy, dx);
-    const tx2 = Math.cos(angle) * clamp;
-    const ty2 = Math.sin(angle) * clamp;
-    // サムを追従 (外円中心からの相対座標)
-    joyThumb.style.transform = `translate(calc(-50% + ${tx2}px), calc(-50% + ${ty2}px))`;
-
-    if (dist < JOY_DEAD) {
-        stopJoyRepeat();
-        return;
-    }
+    const ox = Math.cos(angle) * clamp;
+    const oy = Math.sin(angle) * clamp;
+    joyThumb.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`;
+    if (dist < JOY_DEAD) { stopJoyRepeat(); return; }
     const key = angleToMoveKey(dx, dy);
     if (key !== joyKeyCode) {
         stopJoyRepeat();
         joyKeyCode = key;
         sendKey(key);
-        joyRepeat = setInterval(() => sendKey(key), 200);
+        joyRepeat = setInterval(() => sendKey(key), 180);
     }
 }
 
@@ -1120,30 +1127,49 @@ function joyEnd() {
     joyActive = false;
     joyTouchId = null;
     stopJoyRepeat();
-    joyOuter.style.display = 'none';
+    joyThumb.style.transform = 'translate(-50%,-50%)';
 }
 
-joyZone?.addEventListener('touchstart', (e) => {
+// ── タッチ ──
+joyOuter.addEventListener('touchstart', (e) => {
     e.preventDefault();
     if (joyTouchId !== null) return;
     const t = e.changedTouches[0];
     joyTouchId = t.identifier;
-    joyStart(t.clientX, t.clientY);
+    joyActive = true;
+    const c = getJoyCenter(); joyCX = c.x; joyCY = c.y;
+    joyMoveXY(t.clientX, t.clientY);
 }, { passive: false });
+document.addEventListener('touchmove', (e) => {
+    if (!joyActive) return;
+    for (const t of e.changedTouches) {
+        if (t.identifier === joyTouchId) { e.preventDefault(); joyMoveXY(t.clientX, t.clientY); break; }
+    }
+}, { passive: false });
+document.addEventListener('touchend', (e) => {
+    if (!joyActive) return;
+    for (const t of e.changedTouches) { if (t.identifier === joyTouchId) { joyEnd(); break; } }
+});
+document.addEventListener('touchcancel', () => { if (joyActive) joyEnd(); });
 
-joyZone?.addEventListener('touchmove', (e) => {
+// ── マウス ──
+joyOuter.addEventListener('mousedown', (e) => {
     e.preventDefault();
-    for (const t of e.changedTouches) {
-        if (t.identifier === joyTouchId) { joyMove(t.clientX, t.clientY); break; }
-    }
-}, { passive: false });
+    joyActive = true;
+    const c = getJoyCenter(); joyCX = c.x; joyCY = c.y;
+    joyMoveXY(e.clientX, e.clientY);
+    joyOuter.style.cursor = 'grabbing';
+});
+document.addEventListener('mousemove', (e) => {
+    if (!joyActive) return;
+    joyMoveXY(e.clientX, e.clientY);
+});
+document.addEventListener('mouseup', () => {
+    if (!joyActive) return;
+    joyEnd();
+    joyOuter.style.cursor = 'grab';
+});
 
-joyZone?.addEventListener('touchend', (e) => {
-    for (const t of e.changedTouches) {
-        if (t.identifier === joyTouchId) { joyEnd(); break; }
-    }
-}, { passive: false });
-joyZone?.addEventListener('touchcancel', joyEnd);
 
 // ━━ カメラスワイプ ━━
 const camZone = document.getElementById('cam-zone');
