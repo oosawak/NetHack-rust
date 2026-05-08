@@ -224,6 +224,9 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
 <div id="loading">Loading NetHack WASM...</div>
 <div id="game-container">
     <div id="messages"></div>
+    <div id="rotate-hint" style="display:none;background:#330;color:#ff0;padding:4px 8px;font-size:12px;text-align:center;">
+        📱 横向きにすると全画面で快適にプレイできます
+    </div>
     <canvas id="map-canvas"></canvas>
     <div id="keyboard-hint">📱 タップしてキーボードを表示</div>
     <div id="status"></div>
@@ -281,9 +284,16 @@ let FONT_W, FONT_H, FONT_SIZE;
 
 function calcCellSize() {
     const availW = Math.min(window.innerWidth - 8, 800);
-    FONT_W = Math.max(4, Math.floor(availW / MAP_W));
-    FONT_H = Math.round(FONT_W * 1.8);
-    FONT_SIZE = Math.max(6, Math.round(FONT_W * 1.5));
+    // 横向きなら10px（フルサイズ）、縦向きは画面幅に合わせる
+    if (availW >= 760) {
+        FONT_W = 10; FONT_H = 18; FONT_SIZE = 16;
+    } else if (availW >= 560) {
+        FONT_W = 7;  FONT_H = 13; FONT_SIZE = 11;
+    } else {
+        FONT_W = Math.max(4, Math.floor(availW / MAP_W));
+        FONT_H = Math.round(FONT_W * 1.8);
+        FONT_SIZE = Math.max(6, Math.round(FONT_W * 1.5));
+    }
 }
 calcCellSize();
 
@@ -336,7 +346,13 @@ function resizeCanvas() {
     ctx.textBaseline = 'top';
 }
 resizeCanvas();
-window.addEventListener('resize', () => { resizeCanvas(); renderMap(); });
+window.addEventListener('resize', () => {
+    resizeCanvas();
+    renderMap();
+    // 縦向き時のヒント表示
+    const hint = document.getElementById('rotate-hint');
+    if (hint) hint.style.display = window.innerWidth < 600 ? 'block' : 'none';
+});
 
 // ━━ ゲーム状態 ━━
 const mapTiles = new Array(MAP_H).fill(null).map(() =>
