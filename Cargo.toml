@@ -6,6 +6,7 @@ members = [
     "crates/nethack-desktop",
     "crates/nethack-wasm",
     "crates/nethack-unity",
+    "crates/nethack3d",
 ]
 resolver = "2"
 

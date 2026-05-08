@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NetHack 5.0 — 3D View</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+
+/* 3Dキャンバス: フルスクリーン */
+#canvas3d {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: block;
+}
+
+/* UIオーバーレイ: 最前面 */
+#ui-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    pointer-events: none;
+    z-index: 10;
+}
+#messages {
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    padding: 3px 8px;
+    min-height: 20px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    pointer-events: auto;
+}
+#status {
+    background: rgba(0,0,0,0.7);
+    color: #aaa;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    padding: 2px 8px;
+    min-height: 16px;
+    white-space: pre;
+    pointer-events: auto;
+}
+#loading {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    color: #0f0;
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+    white-space: pre;
+    text-align: center;
+    z-index: 50;
+}
+
+/* カメラ切替ボタン */
+#cam-btn {
+    position: fixed;
+    top: 8px; right: 8px;
+    background: rgba(0,0,0,0.6);
+    color: #0ff;
+    border: 1px solid #0ff;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    z-index: 20;
+    -webkit-tap-highlight-color: transparent;
+    pointer-events: auto;
+}
+#cam-btn:active { background: rgba(0,255,255,0.2); }
+
+/* デバッグパネル */
+#debug-panel {
+    position: fixed;
+    bottom: 72px; left: 0; right: 0;
+    background: rgba(0,0,16,0.8);
+    border-top: 1px solid #0af;
+    color: #0af;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    padding: 4px 6px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    display: none;
+    z-index: 20;
+    pointer-events: none;
+}
+#debug-toggle {
+    position: fixed;
+    bottom: 70px; right: 8px;
+    font-size: 11px;
+    color: #555;
+    cursor: pointer;
+    z-index: 21;
+    pointer-events: auto;
+}
+
+/* テキスト入力オーバーレイ */
+#input-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    pointer-events: auto;
+}
+#input-overlay.active { display: flex; }
+#input-box {
+    background: #111;
+    border: 2px solid #ff0;
+    color: #fff;
+    padding: 16px 24px;
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+    min-width: min(400px, 90vw);
+    max-width: 90vw;
+}
+#input-box .prompt { color: #ff0; margin-bottom: 8px; }
+#input-box input[type=text] {
+    background: #000;
+    border: 1px solid #555;
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 4px 8px;
+    width: 100%;
+    margin-top: 6px;
+}
+
+/* メニューオーバーレイ */
+#menu-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 40px;
+    z-index: 200;
+    overflow-y: auto;
+    pointer-events: auto;
+}
+#menu-overlay.active { display: flex; }
+#menu-box {
+    background: #111;
+    border: 2px solid #0af;
+    color: #fff;
+    padding: 12px 20px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    min-width: min(500px, 90vw);
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+#menu-box .title { color: #0af; font-size: 15px; margin-bottom: 8px; border-bottom: 1px solid #0af; padding-bottom: 4px; }
+.menu-item { padding: 8px 4px; cursor: pointer; min-height: 36px; display: flex; align-items: center; border-bottom: 1px solid #1a1a1a; }
+.menu-item:hover, .menu-item:active { background: #222; }
+.menu-item.selected { color: #ff0; }
+.menu-item .key { color: #0f0; display: inline-block; width: 20px; }
+#menu-box .footer { color: #888; font-size: 12px; margin-top: 8px; border-top: 1px solid #333; padding-top: 4px; }
+
+/* 隠しモバイル入力 */
+#mobile-input {
+    position: fixed;
+    opacity: 0;
+    top: 0; left: 0;
+    width: 1px; height: 1px;
+    font-size: 16px;
+    border: none;
+    background: transparent;
+    z-index: -1;
+}
+
+/* モバイルキーボードボタン */
+#keyboard-btn {
+    position: fixed;
+    bottom: 72px; right: 16px;
+    background: #ff0;
+    color: #000;
+    border: none;
+    border-radius: 50%;
+    width: 52px; height: 52px;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 30;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    display: none;
+    -webkit-tap-highlight-color: transparent;
+}
+@media (pointer: coarse) { #keyboard-btn { display: block; } }
+
+/* モバイルナビゲーションバー */
+#nav-bar {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.85);
+    border-top: 1px solid #333;
+    padding: 6px 8px;
+    z-index: 25;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    pointer-events: auto;
+}
+@media (pointer: coarse) { #nav-bar { display: flex; } }
+.nav-btn {
+    background: #222;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 6px;
+    min-width: 44px;
+    height: 44px;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 8px;
+    -webkit-tap-highlight-color: rgba(255,255,0,0.3);
+    user-select: none;
+}
+.nav-btn:active { background: #444; }
+.nav-btn.yn { background: #220; color: #ff0; border-color: #ff0; }
+.nav-btn.enter { background: #020; color: #0f0; border-color: #0f0; }
+.nav-btn.esc { background: #200; color: #f44; border-color: #f44; }
+</style>
+</head>
+<body>
+<!-- 3D WebGL キャンバス -->
+<canvas id="canvas3d"></canvas>
+
+<!-- UIオーバーレイ -->
+<div id="ui-overlay">
+    <div id="messages"></div>
+    <div id="status"></div>
+</div>
+
+<!-- ローディング表示 -->
+<div id="loading">Loading NetHack 3D...\n(初回は数秒かかります)</div>
+
+<!-- カメラ切替ボタン -->
+<button id="cam-btn" title="Tab: カメラ切替">📷 TPS</button>
+
+<!-- デバッグ -->
+<div id="debug-toggle" onclick="var p=document.getElementById('debug-panel');p.style.display=p.style.display==='none'?'block':'none'">🔍</div>
+<div id="debug-panel"></div>
+
+<!-- 隠しモバイル入力 -->
+<input type="text" id="mobile-input"
+    autocomplete="off" autocorrect="off"
+    autocapitalize="none" spellcheck="false"
+    inputmode="text" />
+
+<!-- モバイルキーボードボタン -->
+<button id="keyboard-btn" title="キーボード">⌨️</button>
+
+<!-- モバイルナビゲーションバー -->
+<div id="nav-bar">
+    <button class="nav-btn esc" data-key="27">ESC</button>
+    <button class="nav-btn" data-key="121">↖</button>
+    <button class="nav-btn" data-key="107">↑</button>
+    <button class="nav-btn" data-key="117">↗</button>
+    <button class="nav-btn" data-key="104">←</button>
+    <button class="nav-btn" data-key="46">·</button>
+    <button class="nav-btn" data-key="108">→</button>
+    <button class="nav-btn" data-key="98">↙</button>
+    <button class="nav-btn" data-key="106">↓</button>
+    <button class="nav-btn" data-key="110">↘</button>
+    <button class="nav-btn enter" data-key="13">↵</button>
+    <button class="nav-btn yn" data-key="121">Y</button>
+    <button class="nav-btn yn" data-key="110">N</button>
+    <button class="nav-btn" data-key="32">Spc</button>
+    <button class="nav-btn" id="keyboard-btn-bar">⌨️</button>
+</div>
+
+<!-- テキスト入力オーバーレイ -->
+<div id="input-overlay">
+    <div id="input-box">
+        <div class="prompt" id="input-prompt"></div>
+        <input type="text" id="input-field" autocomplete="off" autocorrect="off" spellcheck="false"/>
+    </div>
+</div>
+
+<!-- メニューオーバーレイ -->
+<div id="menu-overlay">
+    <div id="menu-box">
+        <div class="title" id="menu-title"></div>
+        <div id="menu-items"></div>
+        <div class="footer" id="menu-footer"></div>
+    </div>
+</div>
+
+<script type="module">
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// NetHack 3D — Rust+wgpu レンダラー + NetHack WASM
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// NetHack color table
+const NH_COLORS = [
+    '#333333','#AA0000','#00AA00','#AA5500','#0000CC',
+    '#AA00AA','#00AAAA','#AAAAAA','#AAAAAA','#FF5500',
+    '#00FF00','#FFFF00','#5555FF','#FF55FF','#55FFFF','#FFFFFF',
+];
+
+// glyph_info 構造体オフセット
+const GLYPH_TTYCHAR_OFFSET = 4;
+const GLYPH_COLOR_OFFSET   = 16;
+
+// マップサイズ
+const MAP_W = 80;
+const MAP_H = 24;
+const MAP_Y_OFFSET = 3; // 行0-2はステータス/メッセージ → 行3-23がダンジョン
+
+// ━━ 3Dタイル定数 ━━
+const TILE_EMPTY   = 0;
+const TILE_FLOOR   = 1;
+const TILE_WALL    = 2;
+const TILE_CORRIDOR= 3;
+const TILE_DOOR    = 4;
+const TILE_PLAYER  = 5;
+const TILE_STAIRS_U= 6;
+const TILE_STAIRS_D= 7;
+const TILE_MONSTER = 8;
+const TILE_ITEM    = 9;
+
+function charToTile(ch) {
+    if (ch === ' ') return TILE_EMPTY;
+    if (ch === '.') return TILE_FLOOR;
+    if (ch === '#') return TILE_CORRIDOR;
+    if (ch === '-' || ch === '|') return TILE_WALL;
+    if (ch === '+') return TILE_DOOR;
+    if (ch === '@') return TILE_PLAYER;
+    if (ch === '<') return TILE_STAIRS_U;
+    if (ch === '>') return TILE_STAIRS_D;
+    if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) return TILE_MONSTER;
+    if ('$:!?/=%*'.includes(ch)) return TILE_ITEM;
+    // その他の床っぽい文字
+    if (ch !== ' ') return TILE_FLOOR;
+    return TILE_EMPTY;
+}
+
+// 方向キー → facing (0=N,1=E,2=S,3=W,4=NE,5=SE,6=SW,7=NW)
+const KEY_FACING = {
+    107: 0, // k → North
+    108: 1, // l → East
+    106: 2, // j → South
+    104: 3, // h → West
+    117: 4, // u → NE
+    110: 5, // n → SE
+    98:  6, // b → SW
+    121: 7, // y → NW
+};
+
+// ━━ ゲーム状態 ━━
+const mapTiles = new Array(MAP_H).fill(null).map(() =>
+    new Array(MAP_W).fill(null).map(() => ({ ch: ' ', color: '#aaa' }))
+);
+let wasmModule = null;
+let nethack3d  = null;   // Rust WASMモジュール
+let mapDirty   = false;
+let playerFacing = 2;    // デフォルト: South
+let player3dX = 40.0;
+let player3dZ = 10.0;
+let rAFRunning = false;
+
+// ━━ UI ━━
+const messagesEl = document.getElementById('messages');
+const statusEl   = document.getElementById('status');
+const loadingEl  = document.getElementById('loading');
+const camBtn     = document.getElementById('cam-btn');
+const debugPanel = document.getElementById('debug-panel');
+let debugLines   = [];
+let glyphCallCount = 0;
+
+function dbg(msg) {
+    debugLines.push(msg);
+    if (debugLines.length > 20) debugLines.shift();
+    debugPanel.textContent = debugLines.join('\n');
+}
+function showMessage(str) {
+    if (!str) return;
+    messagesEl.textContent = str;
+}
+
+// ━━ 3Dキャンバスリサイズ ━━
+const canvas3d = document.getElementById('canvas3d');
+function resizeCanvas3d() {
+    canvas3d.width  = window.innerWidth;
+    canvas3d.height = window.innerHeight;
+}
+resizeCanvas3d();
+window.addEventListener('resize', resizeCanvas3d);
+
+// ━━ 3D 更新: mapTilesから3Dタイル配列を構築してRust WASMに渡す ━━
+function update3dMap() {
+    if (!nethack3d) return;
+    const dungeonH = MAP_H - MAP_Y_OFFSET; // 21行
+    const dungeonW = MAP_W;
+    const tiles = new Uint8Array(dungeonW * dungeonH);
+    let foundPX = -1, foundPZ = -1;
+
+    for (let dy = 0; dy < dungeonH; dy++) {
+        const gy = dy + MAP_Y_OFFSET;
+        for (let dx = 0; dx < dungeonW; dx++) {
+            const tile = mapTiles[gy] ? mapTiles[gy][dx] : null;
+            if (!tile) continue;
+            const t = charToTile(tile.ch);
+            tiles[dy * dungeonW + dx] = t;
+            if (tile.ch === '@') { foundPX = dx; foundPZ = dy; }
+        }
+    }
+
+    nethack3d.set_map_nethack3d(tiles, dungeonW, dungeonH);
+    if (foundPX >= 0) {
+        player3dX = foundPX;
+        player3dZ = foundPZ;
+    }
+    nethack3d.set_player_nethack3d(player3dX, player3dZ, playerFacing);
+    mapDirty = false;
+}
+
+// ━━ rAF ループ ━━
+function startRaf() {
+    if (rAFRunning) return;
+    rAFRunning = true;
+    function loop(ts) {
+        if (nethack3d) {
+            if (mapDirty) update3dMap();
+            nethack3d.tick_nethack3d(ts);
+        }
+        requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+}
+
+// ━━ カメラ切替 ━━
+camBtn.addEventListener('click', () => {
+    if (nethack3d) {
+        nethack3d.switch_camera_nethack3d();
+        camBtn.textContent = '📷 ' + nethack3d.camera_name_nethack3d();
+    }
+});
+
+// ━━ キー入力キュー ━━
+let keyQueue  = [];
+let keyResolve = null;
+
+const mobileInput = document.getElementById('mobile-input');
+const keyboardBtn = document.getElementById('keyboard-btn');
+
+const SENTINEL = '\u00a0';
+function focusMobileInput() {
+    mobileInput.value = SENTINEL;
+    mobileInput.setSelectionRange(SENTINEL.length, SENTINEL.length);
+    mobileInput.focus();
+}
+keyboardBtn.addEventListener('click', () => focusMobileInput());
+const keyboardBtnBar = document.getElementById('keyboard-btn-bar');
+if (keyboardBtnBar) keyboardBtnBar.addEventListener('click', () => focusMobileInput());
+
+canvas3d.addEventListener('click', () => focusMobileInput());
+canvas3d.addEventListener('touchend', (e) => { e.preventDefault(); focusMobileInput(); });
+
+function sendKey(keyCode) {
+    // 移動キーでfacing更新
+    if (KEY_FACING[keyCode] !== undefined) {
+        playerFacing = KEY_FACING[keyCode];
+        if (nethack3d) {
+            nethack3d.set_player_nethack3d(player3dX, player3dZ, playerFacing);
+        }
+    }
+    if (keyResolve) {
+        const resolve = keyResolve;
+        keyResolve = null;
+        resolve(keyCode);
+    } else {
+        keyQueue.push(keyCode);
+    }
+}
+
+function nethackKeyCode(e) {
+    const map = {
+        'ArrowUp': 107, 'ArrowDown': 106, 'ArrowLeft': 104, 'ArrowRight': 108,
+    };
+    if (map[e.key]) return map[e.key];
+    if (e.key === 'Enter')     return 13;
+    if (e.key === 'Escape')    return 27;
+    if (e.key === ' ')         return 32;
+    if (e.key === 'Backspace') return 8;
+    if (e.key === 'Tab') {
+        // Tab → カメラ切替
+        if (nethack3d) {
+            nethack3d.switch_camera_nethack3d();
+            camBtn.textContent = '📷 ' + nethack3d.camera_name_nethack3d();
+        }
+        return null;
+    }
+    if (e.key.length === 1) return e.key.charCodeAt(0);
+    if (e.code === 'Numpad7') return 121; // y
+    if (e.code === 'Numpad9') return 117; // u
+    if (e.code === 'Numpad1') return 98;  // b
+    if (e.code === 'Numpad3') return 110; // n
+    if (e.code === 'Numpad5') return 46;  // .
+    return null;
+}
+
+function processKeyEvent(e) {
+    const key = nethackKeyCode(e);
+    if (key !== null) {
+        e.preventDefault();
+        sendKey(key);
+    }
+}
+document.addEventListener('keydown', processKeyEvent);
+
+mobileInput.addEventListener('keydown', (e) => {
+    processKeyEvent(e);
+    setTimeout(() => {
+        mobileInput.value = SENTINEL;
+        mobileInput.setSelectionRange(SENTINEL.length, SENTINEL.length);
+    }, 0);
+});
+mobileInput.addEventListener('input', (e) => {
+    const val = mobileInput.value;
+    if (val.length < SENTINEL.length) {
+        sendKey(8); // Backspace
+    } else {
+        const added = val.slice(SENTINEL.length);
+        for (const ch of added) sendKey(ch.charCodeAt(0));
+    }
+    mobileInput.value = SENTINEL;
+    mobileInput.setSelectionRange(SENTINEL.length, SENTINEL.length);
+});
+
+document.querySelectorAll('.nav-btn[data-key]').forEach(btn => {
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); sendKey(parseInt(btn.dataset.key)); });
+    btn.addEventListener('click', () => sendKey(parseInt(btn.dataset.key)));
+});
+
+function waitForKey() {
+    return new Promise(resolve => {
+        if (keyQueue.length > 0) resolve(keyQueue.shift());
+        else keyResolve = resolve;
+    });
+}
+
+// ━━ テキスト入力ダイアログ ━━
+const inputOverlay  = document.getElementById('input-overlay');
+const inputPromptEl = document.getElementById('input-prompt');
+const inputField    = document.getElementById('input-field');
+
+function askLine(prompt) {
+    return new Promise(resolve => {
+        inputPromptEl.textContent = prompt;
+        inputField.value = '';
+        inputOverlay.classList.add('active');
+        inputField.focus();
+        function onKey(e) {
+            if (e.key === 'Enter') {
+                const val = inputField.value;
+                inputField.removeEventListener('keydown', onKey);
+                inputOverlay.classList.remove('active');
+                focusMobileInput();
+                resolve(val);
+            } else if (e.key === 'Escape') {
+                inputField.removeEventListener('keydown', onKey);
+                inputOverlay.classList.remove('active');
+                focusMobileInput();
+                resolve('');
+            }
+        }
+        inputField.addEventListener('keydown', onKey);
+    });
+}
+
+// ━━ メニューシステム ━━
+const menuOverlay  = document.getElementById('menu-overlay');
+const menuTitleEl  = document.getElementById('menu-title');
+const menuItemsEl  = document.getElementById('menu-items');
+const menuFooterEl = document.getElementById('menu-footer');
+
+let windows    = {};
+let nextWinId  = 10;
+let menus      = {};
+
+function createWindow(type) {
+    const id = nextWinId++;
+    windows[id] = { type, content: [] };
+    if (type === 4 || type === 5) menus[id] = { items: [], prompt: '', title: '', how: 0 };
+    return id;
+}
+
+function setTile(x, y, ch, color) {
+    if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return;
+    mapTiles[y][x] = { ch, color };
+    mapDirty = true;
+}
+
+function selectMenuItems(winId, how) {
+    return new Promise(resolve => {
+        const menu = menus[winId];
+        if (!menu) { resolve([]); return; }
+        menuTitleEl.textContent = menu.title || '';
+        menuItemsEl.innerHTML = '';
+        menuFooterEl.textContent = how === 0 ? '▼ タップまたはキーで閉じる' :
+                                   how === 1 ? '▼ アイテムをタップして選択' :
+                                               '▼ タップして選択、Enterで決定';
+        const selectedItems = [];
+        menu.items.forEach((item, idx) => {
+            const div = document.createElement('div');
+            div.className = 'menu-item';
+            div.dataset.idx = idx;
+            const keyChar = item.ch || String.fromCharCode(97 + idx);
+            div.innerHTML = `<span class="key">${keyChar})</span> ${item.str || ''}`;
+            function onItemSelect(e) {
+                e.stopPropagation();
+                if (how === 0) { cleanup([]); }
+                else if (how === 1) { cleanup([{ item: item.identifier, count: -1 }]); }
+                else {
+                    const existing = selectedItems.findIndex(s => s.item === item.identifier);
+                    if (existing >= 0) selectedItems.splice(existing, 1);
+                    else selectedItems.push({ item: item.identifier, count: -1 });
+                    updateMenuDisplay();
+                }
+            }
+            div.addEventListener('touchend', (e) => { e.preventDefault(); onItemSelect(e); });
+            div.addEventListener('click', onItemSelect);
+            menuItemsEl.appendChild(div);
+        });
+        if (how === 2) {
+            menuOverlay.addEventListener('touchend', function onOverlayTap(e) {
+                if (e.target === menuOverlay) {
+                    menuOverlay.removeEventListener('touchend', onOverlayTap);
+                    cleanup(selectedItems);
+                }
+            });
+        }
+        menuOverlay.classList.add('active');
+        function onMenuKey(e) {
+            const key = e.key;
+            if (how === 0 || key === 'Escape' || key === ' ' || key === 'Enter') {
+                cleanup([]);
+                return;
+            }
+            const charCode = key.charCodeAt(0);
+            const item = menu.items.find(i => i.ch && i.ch.charCodeAt(0) === charCode);
+            if (item) {
+                if (how === 1) { cleanup([{ item: item.identifier, count: -1 }]); }
+                else {
+                    const existing = selectedItems.findIndex(s => s.item === item.identifier);
+                    if (existing >= 0) selectedItems.splice(existing, 1);
+                    else selectedItems.push({ item: item.identifier, count: -1 });
+                    updateMenuDisplay();
+                }
+            }
+        }
+        function updateMenuDisplay() {
+            menuItemsEl.querySelectorAll('.menu-item').forEach(div => {
+                const idx  = parseInt(div.dataset.idx);
+                const item = menu.items[idx];
+                const isSel = selectedItems.some(s => s.item === item.identifier);
+                div.classList.toggle('selected', isSel);
+            });
+        }
+        function cleanup(result) {
+            document.removeEventListener('keydown', onMenuKey);
+            menuOverlay.classList.remove('active');
+            focusMobileInput();
+            resolve(result);
+        }
+        document.addEventListener('keydown', onMenuKey);
+    });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// NetHack winshim コールバック
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function nethackCallback(name, ...args) {
+    switch (name) {
+    case 'shim_init_nhwindows':
+        loadingEl.style.display = 'none';
+        focusMobileInput();
+        dbg('init_nhwindows: game started');
+        return;
+
+    case 'shim_askname': {
+        const playerName = await askLine('Enter your name:');
+        const Module = wasmModule;
+        const ptr = Module.nethackGlobal?.pointers?.['plnamesiz'] || 0;
+        if (ptr) Module.stringToUTF8(playerName || 'Player', ptr, 256);
+        return;
+    }
+
+    case 'shim_player_selection_or_tty':
+        return true;
+
+    case 'shim_create_nhwindow': {
+        const [type] = args;
+        return createWindow(type);
+    }
+
+    case 'shim_clear_nhwindow': {
+        const [winid] = args;
+        if (windows[winid]) windows[winid].content = [];
+        if (menus[winid]) menus[winid].items = [];
+        if (windows[winid]?.type === 3) {
+            for (let y = 0; y < MAP_H; y++)
+                for (let x = 0; x < MAP_W; x++)
+                    mapTiles[y][x] = { ch: ' ', color: '#aaa' };
+            mapDirty = true;
+        }
+        return;
+    }
+
+    case 'shim_display_nhwindow': {
+        const [winid, blocking] = args;
+        const win = windows[winid];
+        if (!win) return;
+        if (win.type === 3) {
+            update3dMap();
+        } else if ((win.type === 4 || win.type === 5) && blocking) {
+            await waitForKey();
+        }
+        return;
+    }
+
+    case 'shim_destroy_nhwindow': {
+        const [winid] = args;
+        delete windows[winid];
+        delete menus[winid];
+        return;
+    }
+
+    case 'shim_print_glyph': {
+        const [winid, x, y, glyphPtr, bkGlyphPtr] = args;
+        if (!glyphPtr) return;
+        const Module  = wasmModule;
+        const ttychar = Module.getValue(glyphPtr + GLYPH_TTYCHAR_OFFSET, 'i32');
+        const colorIdx= Module.getValue(glyphPtr + GLYPH_COLOR_OFFSET, 'i32');
+        const ch      = ttychar > 0 && ttychar < 128 ? String.fromCharCode(ttychar) : ' ';
+        const color   = NH_COLORS[colorIdx & 0xf] || '#aaa';
+        setTile(x, y, ch, color);
+        glyphCallCount++;
+        if (glyphCallCount <= 5) {
+            dbg(`glyph[${glyphCallCount}] xy=(${x},${y}) ttychar=${ttychar}(${ch}) color=${colorIdx}`);
+        } else if (glyphCallCount === 6) {
+            dbg(`... ${glyphCallCount}+ glyph calls`);
+        }
+        return;
+    }
+
+    case 'shim_curs': return;
+
+    case 'shim_putstr': {
+        const [winid, attr, str] = args;
+        const win = windows[winid];
+        if (!str) return;
+        if (win?.type === 1)       showMessage(str);
+        else if (win?.type === 2)  statusEl.textContent = (statusEl.textContent || '') + str + ' ';
+        else if (win?.type === 4 || win?.type === 5) {
+            if (windows[winid]) windows[winid].content.push(str);
+        }
+        return;
+    }
+
+    case 'shim_raw_print':
+    case 'shim_raw_print_bold': {
+        const [str] = args;
+        if (str) showMessage(str);
+        return;
+    }
+
+    case 'shim_nhgetch':
+        if (mapDirty) update3dMap();
+        dbg(`nhgetch wait (glyphCalls: ${glyphCallCount})`);
+        glyphCallCount = 0;
+        return await waitForKey();
+
+    case 'shim_nh_poskey': {
+        if (mapDirty) update3dMap();
+        return await waitForKey();
+    }
+
+    case 'shim_yn_function': {
+        const [query, resp, def] = args;
+        const prompt = `${query} [${resp || 'yn'}] `;
+        showMessage(prompt + '█');
+        let key;
+        while (true) {
+            key = await waitForKey();
+            const ch = String.fromCharCode(key).toLowerCase();
+            if (!resp || resp.toLowerCase().includes(ch)) break;
+            if (key === 13 || key === 27) { key = def?.charCodeAt(0) || 'n'.charCodeAt(0); break; }
+        }
+        showMessage(prompt + String.fromCharCode(key));
+        return key;
+    }
+
+    case 'shim_getlin': {
+        const [query, bufPtr] = args;
+        const val = await askLine(query || '');
+        if (bufPtr && wasmModule) wasmModule.stringToUTF8(val || '', bufPtr, 256);
+        return;
+    }
+
+    case 'shim_get_ext_cmd': {
+        await askLine('Extended command: #');
+        return -1;
+    }
+
+    case 'shim_start_menu': {
+        const [winid] = args;
+        if (menus[winid]) menus[winid].items = [];
+        return;
+    }
+
+    case 'shim_add_menu': {
+        const [winid, glyphPtr, identPtr, ch, gch, attr, clr, str] = args;
+        if (!menus[winid]) return;
+        menus[winid].items.push({
+            ch: ch > 0 ? String.fromCharCode(ch) : null,
+            str: str || '',
+            identifier: identPtr,
+            attr, clr,
+        });
+        return;
+    }
+
+    case 'shim_end_menu': {
+        const [winid, prompt] = args;
+        if (menus[winid]) menus[winid].prompt = prompt || '';
+        return;
+    }
+
+    case 'shim_select_menu': {
+        const [winid, how] = args;
+        const result = await selectMenuItems(winid, how);
+        return result.length;
+    }
+
+    case 'shim_message_menu': {
+        const [ch, how, mesg] = args;
+        showMessage(mesg || '');
+        return await waitForKey();
+    }
+
+    case 'shim_mark_synch':
+    case 'shim_wait_synch':
+        dbg(`synch: mapDirty=${mapDirty}`);
+        update3dMap();
+        return;
+
+    case 'shim_delay_output':
+        await new Promise(r => setTimeout(r, 50));
+        return;
+
+    case 'shim_status_init':
+        statusEl.textContent = '';
+        return;
+
+    case 'shim_status_enablefield':
+    case 'shim_status_update':
+    case 'shim_nhbell':
+    case 'shim_cliparound':
+    case 'shim_update_positionbar':
+    case 'shim_get_nh_event':
+    case 'shim_number_pad':
+    case 'shim_suspend_nhwindows':
+    case 'shim_resume_nhwindows':
+    case 'shim_display_file':
+    case 'shim_preference_update':
+    case 'shim_change_color':
+    case 'shim_change_background':
+    case 'shim_putmsghistory':
+    case 'shim_status_finish':
+        return;
+
+    case 'shim_doprev_message': return 0;
+    case 'shim_getmsghistory':  return '';
+
+    case 'shim_exit_nhwindows': {
+        const [str] = args;
+        showMessage(str || 'Game over. Press F5 to restart.');
+        return;
+    }
+
+    default:
+        return;
+    }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// WASM 起動
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const CALLBACK_NAME = 'nethackShimCallback';
+globalThis[CALLBACK_NAME] = nethackCallback;
+
+loadingEl.textContent = 'Loading NetHack 3D WASM...\n(初回は数秒かかります)';
+
+// 1. Rust 3D WASMを先にロード
+import init3d, {
+    init_nethack3d,
+    tick_nethack3d,
+    set_map_nethack3d,
+    set_player_nethack3d,
+    switch_camera_nethack3d,
+    camera_name_nethack3d,
+} from './wasm/nethack3d.js';
+
+await init3d();
+nethack3d = {
+    init_nethack3d, tick_nethack3d,
+    set_map_nethack3d, set_player_nethack3d,
+    switch_camera_nethack3d, camera_name_nethack3d,
+};
+await init_nethack3d('canvas3d');
+startRaf();
+
+camBtn.textContent = '📷 ' + camera_name_nethack3d();
+
+loadingEl.textContent = 'Loading NetHack WASM...\n(初回は数秒かかります)';
+
+// 2. NetHack WASM をロード
+import NetHackFactory from '../nethack/nethack.js';
+
+const Module = {
+    locateFile: (path, prefix) => '../nethack/' + path,
+    onRuntimeInitialized: function() {
+        console.log('NetHack WASM runtime initialized');
+        loadingEl.textContent = 'Starting NetHack...';
+        Module.ccall(
+            'shim_graphics_set_callback',
+            null,
+            ['string'],
+            [CALLBACK_NAME],
+            { async: true }
+        );
+    },
+    print:    (text) => { console.log('[NH]', text); showMessage(text); },
+    printErr: (text) => { console.warn('[NH ERR]', text); },
+};
+
+wasmModule = await NetHackFactory(Module);
+focusMobileInput();
+</script>
+</body>
+</html>

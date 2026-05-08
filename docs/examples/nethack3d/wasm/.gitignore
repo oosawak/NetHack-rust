@@ -1,0 +1,3 @@
+# wasm build output
+*.d.ts
+package.json
