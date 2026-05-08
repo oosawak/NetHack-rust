@@ -56,6 +56,30 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     z-index: 50;
 }
 
+/* ミニマップ */
+#minimap-wrap {
+    position: fixed;
+    top: 44px; right: 8px;
+    z-index: 20;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+#minimap-wrap.hidden { opacity: 0; pointer-events: none; }
+#minimap {
+    display: block;
+    border: 1px solid rgba(0,255,255,0.4);
+    border-radius: 3px;
+    background: rgba(0,0,0,0.55);
+    image-rendering: pixelated;
+}
+#minimap-label {
+    color: rgba(0,255,255,0.6);
+    font-family: 'Courier New', monospace;
+    font-size: 9px;
+    text-align: center;
+    margin-top: 1px;
+}
+
 /* カメラ切替ボタン */
 #cam-btn {
     position: fixed;
@@ -197,39 +221,91 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 }
 @media (pointer: coarse) { #keyboard-btn { display: block; } }
 
+/* フロートキーボードボタン: ナビバー内に移したので非表示 */
+#keyboard-btn { display: none !important; }
+
 /* モバイルナビゲーションバー */
 #nav-bar {
     display: none;
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    background: rgba(0,0,0,0.85);
-    border-top: 1px solid #333;
-    padding: 6px 8px;
+    background: rgba(0,0,0,0.92);
+    border-top: 1px solid #444;
+    padding: 4px 4px env(safe-area-inset-bottom, 4px);
     z-index: 25;
-    gap: 6px;
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 3px;
     pointer-events: auto;
 }
 @media (pointer: coarse) { #nav-bar { display: flex; } }
+.nav-row { display: flex; justify-content: center; gap: 3px; align-items: center; }
 .nav-btn {
     background: #222;
     color: #fff;
     border: 1px solid #555;
     border-radius: 6px;
-    min-width: 44px;
-    height: 44px;
+    min-width: 38px;
+    height: 38px;
     font-size: 18px;
     cursor: pointer;
-    padding: 0 8px;
+    padding: 0 3px;
     -webkit-tap-highlight-color: rgba(255,255,0,0.3);
     user-select: none;
+    flex: 0 0 auto;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    line-height: 1; gap: 1px;
 }
+.nav-btn.dir { font-size: 20px; min-width: 40px; height: 40px; }
+.nav-btn.act { background: #121228; border-color: #446; min-width: 36px; }
+.nav-btn.act span { font-size: 14px; line-height: 1; }
+.nav-btn.act small { font-size: 8px; color: #8af; line-height: 1; }
 .nav-btn:active { background: #444; }
-.nav-btn.yn { background: #220; color: #ff0; border-color: #ff0; }
-.nav-btn.enter { background: #020; color: #0f0; border-color: #0f0; }
-.nav-btn.esc { background: #200; color: #f44; border-color: #f44; }
+.nav-btn.yn  { background: #220; color: #ff0; border-color: #aa6; min-width: 36px; }
+.nav-btn.enter { background: #020; color: #0f0; border-color: #0a0; }
+.nav-btn.esc { background: #200; color: #f44; border-color: #a00; }
+.nav-btn.kbd { background: #111; font-size: 20px; }
+
+/* Y/N タッチオーバーレイ */
+#yn-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.72);
+    z-index: 80;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 145px;
+}
+#yn-overlay.active { display: flex; }
+#yn-box {
+    background: #111;
+    border: 2px solid #0af;
+    border-radius: 12px;
+    padding: 14px 18px 12px;
+    min-width: min(340px, 92vw);
+    text-align: center;
+}
+#yn-query {
+    color: #ff0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    margin-bottom: 12px;
+    word-break: break-all;
+}
+#yn-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.yn-choice-btn {
+    min-width: 68px; height: 54px;
+    border-radius: 8px; border: 2px solid #555;
+    background: #222; color: #fff;
+    font-size: 22px; font-weight: bold;
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(255,255,0,0.3);
+}
+.yn-choice-btn.yes { background: #042; border-color: #0f0; color: #0f0; }
+.yn-choice-btn.no  { background: #200; border-color: #f00; color: #f44; }
+.yn-choice-btn.def { background: #220; border-color: #ff0; color: #ff0; }
+.yn-choice-btn:active { filter: brightness(1.6); }
 </style>
 </head>
 <body>
@@ -248,6 +324,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 <!-- カメラ切替ボタン -->
 <button id="cam-btn" title="Tab: カメラ切替">📷 TPS</button>
 
+<!-- ミニマップ (TPS/FPS時に右上表示) -->
+<div id="minimap-wrap">
+    <canvas id="minimap" width="160" height="53"></canvas>
+    <div id="minimap-label">MAP</div>
+</div>
+
 <!-- デバッグ -->
 <div id="debug-toggle" onclick="var p=document.getElementById('debug-panel');p.style.display=p.style.display==='none'?'block':'none'">🔍</div>
 <div id="debug-panel"></div>
@@ -261,23 +343,49 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 <!-- モバイルキーボードボタン -->
 <button id="keyboard-btn" title="キーボード">⌨️</button>
 
-<!-- モバイルナビゲーションバー -->
+<!-- モバイルナビゲーションバー (3段構成) -->
 <div id="nav-bar">
+  <!-- 段1: 方向パッド -->
+  <div class="nav-row">
+    <button class="nav-btn dir" data-key="121">↖</button>
+    <button class="nav-btn dir" data-key="107">↑</button>
+    <button class="nav-btn dir" data-key="117">↗</button>
+    <button class="nav-btn dir" data-key="104">←</button>
+    <button class="nav-btn dir" data-key="46" title="待つ">·</button>
+    <button class="nav-btn dir" data-key="108">→</button>
+    <button class="nav-btn dir" data-key="98">↙</button>
+    <button class="nav-btn dir" data-key="106">↓</button>
+    <button class="nav-btn dir" data-key="110">↘</button>
+  </div>
+  <!-- 段2: よく使うコマンド -->
+  <div class="nav-row">
+    <button class="nav-btn act" data-key="44"><span>,</span><small>拾う</small></button>
+    <button class="nav-btn act" data-key="105"><span>i</span><small>持物</small></button>
+    <button class="nav-btn act" data-key="115"><span>s</span><small>探索</small></button>
+    <button class="nav-btn act" data-key="60"><span>&lt;</span><small>上へ</small></button>
+    <button class="nav-btn act" data-key="62"><span>&gt;</span><small>下へ</small></button>
+    <button class="nav-btn act" data-key="101"><span>e</span><small>食べ</small></button>
+    <button class="nav-btn act" data-key="100"><span>d</span><small>落す</small></button>
+    <button class="nav-btn act" data-key="97"><span>a</span><small>使用</small></button>
+    <button class="nav-btn act" data-key="113"><span>q</span><small>飲む</small></button>
+  </div>
+  <!-- 段3: システムキー -->
+  <div class="nav-row">
     <button class="nav-btn esc" data-key="27">ESC</button>
-    <button class="nav-btn" data-key="121">↖</button>
-    <button class="nav-btn" data-key="107">↑</button>
-    <button class="nav-btn" data-key="117">↗</button>
-    <button class="nav-btn" data-key="104">←</button>
-    <button class="nav-btn" data-key="46">·</button>
-    <button class="nav-btn" data-key="108">→</button>
-    <button class="nav-btn" data-key="98">↙</button>
-    <button class="nav-btn" data-key="106">↓</button>
-    <button class="nav-btn" data-key="110">↘</button>
+    <button class="nav-btn" data-key="32">SPC</button>
     <button class="nav-btn enter" data-key="13">↵</button>
     <button class="nav-btn yn" data-key="121">Y</button>
     <button class="nav-btn yn" data-key="110">N</button>
-    <button class="nav-btn" data-key="32">Spc</button>
-    <button class="nav-btn" id="keyboard-btn-bar">⌨️</button>
+    <button class="nav-btn kbd" id="keyboard-btn-bar">⌨️</button>
+  </div>
+</div>
+
+<!-- Y/N タッチオーバーレイ -->
+<div id="yn-overlay">
+    <div id="yn-box">
+        <div id="yn-query"></div>
+        <div id="yn-btns"></div>
+    </div>
 </div>
 
 <!-- テキスト入力オーバーレイ -->
@@ -389,6 +497,94 @@ function showMessage(str) {
     messagesEl.textContent = str;
 }
 
+// ━━ ミニマップ ━━
+const minimapCanvas = document.getElementById('minimap');
+const minimapCtx    = minimapCanvas.getContext('2d');
+const minimapWrap   = document.getElementById('minimap-wrap');
+const MM_W = 160, MM_H = 53;
+const DUNGEON_W = MAP_W, DUNGEON_H = MAP_H - MAP_Y_OFFSET; // 80×21
+const MM_SX = MM_W / DUNGEON_W;  // ~2px/tile
+const MM_SY = MM_H / DUNGEON_H;  // ~2.5px/tile
+
+// タイル種別 → ミニマップ色
+const TILE_COL = {
+    0: null,           // empty → 描画しない
+    1: '#3a3a3a',      // floor
+    2: '#787878',      // wall
+    3: '#2a2a2a',      // corridor
+    4: '#7a4a1a',      // door
+    5: null,           // player → 別途
+    6: '#00cc44',      // stairs up
+    7: '#cc4400',      // stairs down
+    8: '#cc1111',      // monster
+    9: '#cccc00',      // item
+};
+
+let currentCamMode = 'TPS';
+
+function drawMinimap() {
+    const dungeonH = MAP_H - MAP_Y_OFFSET;
+    minimapCtx.clearRect(0, 0, MM_W, MM_H);
+
+    // 全タイル描画
+    for (let dy = 0; dy < dungeonH; dy++) {
+        const gy = dy + MAP_Y_OFFSET;
+        for (let dx = 0; dx < DUNGEON_W; dx++) {
+            const tile = mapTiles[gy]?.[dx];
+            if (!tile) continue;
+            const t = charToTile(tile.ch);
+            const col = TILE_COL[t];
+            if (!col) continue;
+            minimapCtx.fillStyle = col;
+            minimapCtx.fillRect(
+                Math.floor(dx * MM_SX), Math.floor(dy * MM_SY),
+                Math.max(1, Math.ceil(MM_SX)), Math.max(1, Math.ceil(MM_SY))
+            );
+        }
+    }
+
+    // プレイヤー: 矢印付きドット
+    if (player3dX >= 0) {
+        const mx = (player3dX + 0.5) * MM_SX;
+        const my = (player3dZ + 0.5) * MM_SY;
+
+        // 向き矢印
+        const FACING_RAD = [
+            -Math.PI/2,            // 0=N
+             0,                    // 1=E
+             Math.PI/2,            // 2=S
+             Math.PI,              // 3=W
+            -Math.PI/4,            // 4=NE
+             Math.PI/4,            // 5=SE
+             Math.PI + Math.PI/4,  // 6=SW
+             Math.PI - Math.PI/4,  // 7=NW
+        ];
+        const ang = FACING_RAD[playerFacing] ?? Math.PI/2;
+        const r = 4.5;
+        minimapCtx.strokeStyle = '#fff';
+        minimapCtx.lineWidth = 1.5;
+        minimapCtx.beginPath();
+        minimapCtx.moveTo(mx, my);
+        minimapCtx.lineTo(mx + Math.cos(ang)*r, my + Math.sin(ang)*r);
+        minimapCtx.stroke();
+
+        // プレイヤードット
+        minimapCtx.fillStyle = '#00eeff';
+        minimapCtx.beginPath();
+        minimapCtx.arc(mx, my, 2.5, 0, Math.PI*2);
+        minimapCtx.fill();
+    }
+}
+
+function updateMinimapVisibility() {
+    // TOPビューではミニマップ不要 (全体が見えるため)
+    if (currentCamMode === 'TOP') {
+        minimapWrap.classList.add('hidden');
+    } else {
+        minimapWrap.classList.remove('hidden');
+    }
+}
+
 // ━━ 3Dキャンバスリサイズ ━━
 const canvas3d = document.getElementById('canvas3d');
 function resizeCanvas3d() {
@@ -423,6 +619,7 @@ function update3dMap() {
         player3dZ = foundPZ;
     }
     nethack3d.set_player_nethack3d(player3dX, player3dZ, playerFacing);
+    drawMinimap();
     mapDirty = false;
 }
 
@@ -444,7 +641,9 @@ function startRaf() {
 camBtn.addEventListener('click', () => {
     if (nethack3d) {
         nethack3d.switch_camera_nethack3d();
-        camBtn.textContent = '📷 ' + nethack3d.camera_name_nethack3d();
+        currentCamMode = nethack3d.camera_name_nethack3d();
+        camBtn.textContent = '📷 ' + currentCamMode;
+        updateMinimapVisibility();
     }
 });
 
@@ -465,8 +664,8 @@ keyboardBtn.addEventListener('click', () => focusMobileInput());
 const keyboardBtnBar = document.getElementById('keyboard-btn-bar');
 if (keyboardBtnBar) keyboardBtnBar.addEventListener('click', () => focusMobileInput());
 
-canvas3d.addEventListener('click', () => focusMobileInput());
-canvas3d.addEventListener('touchend', (e) => { e.preventDefault(); focusMobileInput(); });
+// キャンバスタップ: キーボード自動表示しない (モバイルUX改善)
+// canvas3d のタップはゲーム操作用。⌨️ボタンで明示的に開く。
 
 function sendKey(keyCode) {
     // 移動キーでfacing更新
@@ -498,7 +697,9 @@ function nethackKeyCode(e) {
         // Tab → カメラ切替
         if (nethack3d) {
             nethack3d.switch_camera_nethack3d();
-            camBtn.textContent = '📷 ' + nethack3d.camera_name_nethack3d();
+            currentCamMode = nethack3d.camera_name_nethack3d();
+            camBtn.textContent = '📷 ' + currentCamMode;
+            updateMinimapVisibility();
         }
         return null;
     }
@@ -548,6 +749,60 @@ function waitForKey() {
     return new Promise(resolve => {
         if (keyQueue.length > 0) resolve(keyQueue.shift());
         else keyResolve = resolve;
+    });
+}
+
+// ━━ Y/N タッチオーバーレイ ━━
+const ynOverlay = document.getElementById('yn-overlay');
+const ynQueryEl = document.getElementById('yn-query');
+const ynBtnsEl  = document.getElementById('yn-btns');
+
+function askYN(query, resp, def) {
+    return new Promise(resolve => {
+        ynQueryEl.textContent = query;
+        ynBtnsEl.innerHTML = '';
+        const defCode = def ? def.charCodeAt(0) : 'n'.charCodeAt(0);
+        const validKeys = (resp || 'yn').toLowerCase();
+
+        function finish(code) {
+            document.removeEventListener('keydown', onKey);
+            ynOverlay.classList.remove('active');
+            // キューに残ったYN誤入力をクリア
+            keyQueue.length = 0;
+            resolve(code);
+        }
+
+        // 各選択肢ボタン
+        for (const ch of validKeys) {
+            const btn = document.createElement('button');
+            btn.className = 'yn-choice-btn';
+            if (ch === 'y') btn.classList.add('yes');
+            else if (ch === 'n') btn.classList.add('no');
+            else if (def && ch === def.toLowerCase()) btn.classList.add('def');
+            btn.textContent = ch.toUpperCase();
+            const code = ch.charCodeAt(0);
+            const handler = () => finish(code);
+            btn.addEventListener('click', handler);
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); handler(); });
+            ynBtnsEl.appendChild(btn);
+        }
+        // キャンセル/デフォルト
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'yn-choice-btn def';
+        cancelBtn.textContent = def ? def.toUpperCase() + '✓' : '✕';
+        cancelBtn.addEventListener('click', () => finish(defCode));
+        cancelBtn.addEventListener('touchend', (e) => { e.preventDefault(); finish(defCode); });
+        ynBtnsEl.appendChild(cancelBtn);
+
+        // キーボードでも応答可
+        function onKey(e) {
+            if (e.key === 'Escape' || e.key === 'Enter') { finish(defCode); return; }
+            if (e.key.length === 1 && validKeys.includes(e.key.toLowerCase())) {
+                finish(e.key.charCodeAt(0));
+            }
+        }
+        document.addEventListener('keydown', onKey);
+        ynOverlay.classList.add('active');
     });
 }
 
@@ -686,7 +941,7 @@ async function nethackCallback(name, ...args) {
     switch (name) {
     case 'shim_init_nhwindows':
         loadingEl.style.display = 'none';
-        focusMobileInput();
+        // モバイルではキーボード自動表示しない
         dbg('init_nhwindows: game started');
         return;
 
@@ -790,16 +1045,9 @@ async function nethackCallback(name, ...args) {
 
     case 'shim_yn_function': {
         const [query, resp, def] = args;
-        const prompt = `${query} [${resp || 'yn'}] `;
-        showMessage(prompt + '█');
-        let key;
-        while (true) {
-            key = await waitForKey();
-            const ch = String.fromCharCode(key).toLowerCase();
-            if (!resp || resp.toLowerCase().includes(ch)) break;
-            if (key === 13 || key === 27) { key = def?.charCodeAt(0) || 'n'.charCodeAt(0); break; }
-        }
-        showMessage(prompt + String.fromCharCode(key));
+        showMessage(query + ' [' + (resp || 'yn') + ']');
+        const key = await askYN(query, resp, def);
+        showMessage(query + ' → ' + String.fromCharCode(key));
         return key;
     }
 

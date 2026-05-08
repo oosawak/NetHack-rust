@@ -118,42 +118,48 @@ impl Nethack3dState {
 
     fn calc_vp(&self) -> [[f32;4];4] {
         let asp = self.gpu.width as f32 / self.gpu.height.max(1) as f32;
-        let proj = perspective(0.75, asp, 0.1, 80.0);
 
-        let px = self.vis_x; let pz = self.vis_z;
+        // タイル中心に合わせる (+0.5 オフセット)
+        let px = self.vis_x + 0.5;
+        let pz = self.vis_z + 0.5;
         let up = [0.0_f32, 1.0, 0.0];
 
-        let view = match self.cam_mode {
+        match self.cam_mode {
             CameraMode::Top => {
-                // 真上から少し傾けたトップビュー
-                look_at(
-                    [px, 14.0, pz - 2.0],
-                    [px, 0.0, pz + 2.0],
+                // 斜め上からの俯瞰ビュー
+                // 完全真上だと up ベクトルと視線が平行になる不具合があるため少し前傾
+                let proj = perspective(0.90, asp, 0.1, 80.0);
+                let view = look_at(
+                    [px, 10.0, pz - 5.0],
+                    [px,  0.5, pz + 3.0],
                     up,
-                )
+                );
+                mat_mul(proj, view)
             }
             CameraMode::Tps => {
+                let proj = perspective(0.75, asp, 0.1, 80.0);
                 // 後方斜め上 (向き対応)
                 let back_x = -self.vis_angle.cos() * 5.0;
                 let back_z = -self.vis_angle.sin() * 5.0;
-                look_at(
+                let view = look_at(
                     [px + back_x, 3.5, pz + back_z],
                     [px + self.vis_angle.cos() * 2.0, 0.5, pz + self.vis_angle.sin() * 2.0],
                     up,
-                )
+                );
+                mat_mul(proj, view)
             }
             CameraMode::Fps => {
-                // 一人称視点
+                // 一人称視点: 広めFOVで壁の中に入りにくく
+                let proj = perspective(1.05, asp, 0.05, 60.0);
                 let fwd_x = self.vis_angle.cos();
                 let fwd_z = self.vis_angle.sin();
-                look_at(
-                    [px, 0.6, pz],
-                    [px + fwd_x, 0.6, pz + fwd_z],
+                let view = look_at(
+                    [px, 0.65, pz],
+                    [px + fwd_x * 4.0, 0.65, pz + fwd_z * 4.0],
                     up,
-                )
+                );
+                mat_mul(proj, view)
             }
-        };
-
-        mat_mul(proj, view)
+        }
     }
 }

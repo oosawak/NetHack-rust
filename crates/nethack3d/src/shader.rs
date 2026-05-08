@@ -79,8 +79,8 @@ fn fs_main(v: VOut) -> @location(0) vec4<f32> {
         rgb = rgb * grain;
     }
 
-    // フォグ (ダンジョンは濃いめ)
-    let fog_density = 0.14;
+    // フォグ (ダンジョンは濃いめ、ただしTOP視点で真っ暗にならない程度)
+    let fog_density = 0.08;
     let fog = exp(-fog_density * fog_density * v.depth * v.depth);
     let fog_floor = clamp(v.world_y * 2.0, 0.0, 1.0);
     let fog_final = fog * (0.7 + fog_floor * 0.3);
