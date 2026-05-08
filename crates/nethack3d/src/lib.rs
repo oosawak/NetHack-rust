@@ -78,6 +78,31 @@ pub fn switch_camera_nethack3d() {
     });
 }
 
+/// カメラヨーオフセット設定 (タッチスワイプ用, ラジアン)
+#[wasm_bindgen]
+pub fn set_cam_yaw_offset_nethack3d(v: f32) {
+    STATE.with(|st| {
+        if let Some(ref mut s) = *st.borrow_mut() { s.set_cam_yaw_offset(v); }
+    });
+}
+
+/// カメラヨーオフセットをリセット (プレイヤー移動後に呼ぶ)
+#[wasm_bindgen]
+pub fn reset_cam_yaw_offset_nethack3d() {
+    STATE.with(|st| {
+        if let Some(ref mut s) = *st.borrow_mut() { s.reset_cam_yaw_offset(); }
+    });
+}
+
+/// VP行列をフラット配列で返す (column-major 16 floats)
+#[wasm_bindgen]
+pub fn get_vp_flat_nethack3d() -> Vec<f32> {
+    STATE.with(|st| {
+        if let Some(ref s) = *st.borrow() { s.get_vp_flat() }
+        else { vec![0.0; 16] }
+    })
+}
+
 /// 現在のカメラ名を取得 ("TPS" / "TOP" / "FPS")
 #[wasm_bindgen]
 pub fn camera_name_nethack3d() -> String {

@@ -300,6 +300,143 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 /* フロートキーボードボタン: ナビバー内に移したので非表示 */
 #keyboard-btn { display: none !important; }
 
+/* モバイルナビゲーションバー → 常時非表示 (kbd-panelに移行) */
+#nav-bar { display: none !important; }
+
+/* ━━ ジョイスティック ━━ */
+#joy-zone {
+    position: fixed;
+    left: 0; bottom: 58px;
+    width: 52%; height: 52%;
+    z-index: 15;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+}
+#cam-zone {
+    position: fixed;
+    right: 0; bottom: 58px;
+    width: 48%; height: 52%;
+    z-index: 15;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+}
+#joy-outer {
+    position: fixed;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.28);
+    background: rgba(0,0,0,0.38);
+    display: none;
+    pointer-events: none;
+    z-index: 16;
+    transform: translate(-50%, -50%);
+}
+#joy-thumb {
+    position: absolute;
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.60);
+    border: 2px solid rgba(255,255,255,0.9);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    transition: background 0.1s;
+}
+/* カメラスワイプ ヒント */
+#cam-zone-hint {
+    position: fixed;
+    right: 12px;
+    bottom: 68px;
+    color: rgba(255,255,255,0.18);
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    pointer-events: none;
+    z-index: 14;
+    text-align: right;
+    display: none;
+}
+@media (pointer: coarse) {
+    #cam-zone-hint { display: block; }
+    #joy-zone, #cam-zone { display: block; }
+}
+#joy-zone, #cam-zone { display: none; }
+
+/* ━━ ミニバー (常時表示フッター) ━━ */
+#mini-bar {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 58px;
+    background: rgba(0,0,0,0.92);
+    border-top: 1px solid #383838;
+    z-index: 25;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px env(safe-area-inset-bottom, 4px);
+    gap: 5px;
+}
+@media (pointer: coarse) { #mini-bar { display: flex; } }
+.mini-btn {
+    flex: 1;
+    max-width: 68px;
+    height: 44px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: #ccc;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(255,255,255,0.15);
+    user-select: none;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    line-height: 1.2; gap: 1px;
+}
+.mini-btn span.lbl { font-size: 9px; color: #666; line-height: 1; }
+.mini-btn:active { background: #333; }
+.mini-btn.esc-btn { border-color: #a00; color: #f44; background: #200; }
+.mini-btn.enter-btn { border-color: #0a0; color: #0f0; background: #020; }
+.mini-btn.spc-btn { font-size: 18px; }
+.mini-btn.kbd-btn.open { background: #332200; border-color: #ff0; color: #ff0; }
+.mini-btn.cam-btn { color: #0ff; border-color: #0af; }
+
+/* ━━ キーボードパネル ━━ */
+#kbd-panel {
+    display: none;
+    position: fixed;
+    bottom: 58px; left: 0; right: 0;
+    background: rgba(0,0,0,0.96);
+    border-top: 1px solid #555;
+    padding: 5px 4px 6px;
+    z-index: 24;
+    flex-direction: column;
+    gap: 3px;
+}
+#kbd-panel.open { display: flex; }
+
+/* ━━ エンティティ情報ポップアップ ━━ */
+#entity-popup {
+    position: fixed;
+    z-index: 55;
+    background: rgba(4, 8, 18, 0.95);
+    border: 2px solid #0af;
+    border-radius: 12px;
+    padding: 10px 14px 10px;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    min-width: 150px; max-width: 240px;
+    display: none;
+    pointer-events: none;
+    box-shadow: 0 4px 24px rgba(0,170,255,0.35);
+    animation: popIn 0.15s ease-out;
+}
+@keyframes popIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+#entity-popup .ep-emoji { font-size: 28px; display: block; text-align: center; margin-bottom: 4px; }
+#entity-popup .ep-title { color: #0ff; font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 6px; }
+#entity-popup .ep-row { color: #aaa; font-size: 11px; margin-top: 2px; }
+#entity-popup .ep-row span { color: #ddd; }
+
 /* モバイルナビゲーションバー */
 #nav-bar {
     display: none;
@@ -418,12 +555,33 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     autocapitalize="none" spellcheck="false"
     inputmode="text" />
 
-<!-- モバイルキーボードボタン -->
-<button id="keyboard-btn" title="キーボード">⌨️</button>
+<!-- ジョイスティック ゾーン (左: 移動) -->
+<div id="joy-zone"></div>
+<div id="joy-outer"><div id="joy-thumb"></div></div>
 
-<!-- モバイルナビゲーションバー (3段構成) -->
-<div id="nav-bar">
-  <!-- 段1: 方向パッド -->
+<!-- カメラスワイプ ゾーン (右) -->
+<div id="cam-zone"></div>
+<div id="cam-zone-hint">← スワイプ →<br>カメラ回転</div>
+
+<!-- エンティティ情報ポップアップ -->
+<div id="entity-popup">
+    <span class="ep-emoji" id="ep-emoji">?</span>
+    <div class="ep-title" id="ep-title">Unknown</div>
+    <div class="ep-row" id="ep-row1"></div>
+    <div class="ep-row" id="ep-row2"></div>
+</div>
+
+<!-- ミニバー (常時表示) -->
+<div id="mini-bar">
+    <button class="mini-btn esc-btn" data-key="27">ESC</button>
+    <button class="mini-btn spc-btn" data-key="32">⎵<span class="lbl">SPC</span></button>
+    <button class="mini-btn enter-btn" data-key="13">↵<span class="lbl">決定</span></button>
+    <button class="mini-btn cam-btn" id="mini-cam-btn">📷<span class="lbl" id="mini-cam-lbl">TPS</span></button>
+    <button class="mini-btn kbd-btn" id="mini-kbd-btn">⌨️<span class="lbl">コマンド</span></button>
+</div>
+
+<!-- キーボードパネル (⌨️ で開閉) -->
+<div id="kbd-panel">
   <div class="nav-row">
     <button class="nav-btn dir" data-key="121">↖</button>
     <button class="nav-btn dir" data-key="107">↑</button>
@@ -435,7 +593,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     <button class="nav-btn dir" data-key="106">↓</button>
     <button class="nav-btn dir" data-key="110">↘</button>
   </div>
-  <!-- 段2: よく使うコマンド -->
   <div class="nav-row">
     <button class="nav-btn act" data-key="44"><span>,</span><small>拾う</small></button>
     <button class="nav-btn act" data-key="105"><span>i</span><small>持物</small></button>
@@ -447,13 +604,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     <button class="nav-btn act" data-key="97"><span>a</span><small>使用</small></button>
     <button class="nav-btn act" data-key="113"><span>q</span><small>飲む</small></button>
   </div>
-  <!-- 段3: システムキー -->
   <div class="nav-row">
-    <button class="nav-btn esc" data-key="27">ESC</button>
-    <button class="nav-btn" data-key="32">SPC</button>
-    <button class="nav-btn enter" data-key="13">↵</button>
     <button class="nav-btn yn" data-key="121">Y</button>
     <button class="nav-btn yn" data-key="110">N</button>
+    <button class="nav-btn" data-key="116"><span style="font-size:12px">t</span><span style="font-size:8px">投擲</span></button>
+    <button class="nav-btn" data-key="90">Z<span style="font-size:8px;color:#8af">呪文</span></button>
+    <button class="nav-btn" data-key="112">p<span style="font-size:8px;color:#8af">祈る</span></button>
     <button class="nav-btn kbd" id="keyboard-btn-bar">⌨️</button>
   </div>
 </div>
@@ -598,6 +754,7 @@ const TILE_COL = {
     7: '#cc4400',      // stairs down
     8: '#cc1111',      // monster
     9: '#cccc00',      // item
+    10: '#ffaa00',     // dog (暖かいオレンジ)
 };
 
 let currentCamMode = 'TPS';
@@ -695,15 +852,22 @@ function update3dMap() {
     const dungeonW = MAP_W;
     const tiles = new Uint8Array(dungeonW * dungeonH);
     let foundPX = -1, foundPZ = -1;
+    entityList = []; // エンティティリストをリセット
 
     for (let dy = 0; dy < dungeonH; dy++) {
         const gy = dy + MAP_Y_OFFSET;
         for (let dx = 0; dx < dungeonW; dx++) {
             const tile = mapTiles[gy] ? mapTiles[gy][dx] : null;
             if (!tile) continue;
-            const t = charToTile(tile.ch);
+            const ch = tile.ch;
+            const t = charToTile(ch);
             tiles[dy * dungeonW + dx] = t;
-            if (tile.ch === '@') { foundPX = dx; foundPZ = dy; }
+            if (ch === '@') { foundPX = dx; foundPZ = dy; }
+            // エンティティ収集 (タップ情報用)
+            if (t === TILE_MONSTER || t === TILE_DOG || t === TILE_ITEM ||
+                t === TILE_STAIRS_U || t === TILE_STAIRS_D || t === TILE_PLAYER) {
+                entityList.push({ tx: dx, tz: dy, ch, t });
+            }
         }
     }
 
@@ -715,6 +879,9 @@ function update3dMap() {
             const dz = foundPZ - player3dZ;
             if (dx !== 0 || dz !== 0) {
                 playerFacing = deltaToFacing(dx, dz);
+                // 移動したのでカメラヨーをリセット
+                camYawOffset = 0;
+                nethack3d.reset_cam_yaw_offset_nethack3d?.();
                 dbg(`moved dx=${dx} dz=${dz} → facing=${playerFacing}`);
             }
         }
@@ -743,14 +910,18 @@ function startRaf() {
 }
 
 // ━━ カメラ切替 ━━
-camBtn.addEventListener('click', () => {
+function switchCamera() {
     if (nethack3d) {
         nethack3d.switch_camera_nethack3d();
         currentCamMode = nethack3d.camera_name_nethack3d();
         camBtn.textContent = '📷 ' + currentCamMode;
+        const miniLbl = document.getElementById('mini-cam-lbl');
+        if (miniLbl) miniLbl.textContent = currentCamMode;
         updateMinimapVisibility();
     }
-});
+}
+camBtn.addEventListener('click', switchCamera);
+document.getElementById('mini-cam-btn')?.addEventListener('click', switchCamera);
 
 // ━━ キー入力キュー ━━
 let keyQueue  = [];
@@ -800,12 +971,7 @@ function nethackKeyCode(e) {
     if (e.key === 'Backspace') return 8;
     if (e.key === 'Tab') {
         // Tab → カメラ切替
-        if (nethack3d) {
-            nethack3d.switch_camera_nethack3d();
-            currentCamMode = nethack3d.camera_name_nethack3d();
-            camBtn.textContent = '📷 ' + currentCamMode;
-            updateMinimapVisibility();
-        }
+        switchCamera();
         return null;
     }
     if (e.key.length === 1) return e.key.charCodeAt(0);
@@ -859,6 +1025,299 @@ function waitForKey() {
         }
     });
 }
+
+// ━━ キーボードパネル トグル ━━
+const kbdPanel  = document.getElementById('kbd-panel');
+const kbdBtn    = document.getElementById('mini-kbd-btn');
+let kbdOpen = false;
+
+function setKbdOpen(open) {
+    kbdOpen = open;
+    kbdPanel?.classList.toggle('open', open);
+    kbdBtn?.classList.toggle('open', open);
+    // キーボードパネルが開いている間はジョイスティックゾーンを非表示
+    const joyZone = document.getElementById('joy-zone');
+    const camZone = document.getElementById('cam-zone');
+    if (joyZone) joyZone.style.display = open ? 'none' : '';
+    if (camZone) camZone.style.display = open ? 'none' : '';
+}
+kbdBtn?.addEventListener('click', () => setKbdOpen(!kbdOpen));
+document.getElementById('keyboard-btn-bar')?.addEventListener('click', () => focusMobileInput());
+
+// ━━ ジョイスティック ━━
+const joyZone  = document.getElementById('joy-zone');
+const joyOuter = document.getElementById('joy-outer');
+const joyThumb = document.getElementById('joy-thumb');
+const JOY_R = 60;       // 外円半径 (px)
+const JOY_DEAD = 14;    // デッドゾーン半径
+let joyActive = false;
+let joyCX = 0, joyCY = 0; // 外円中心 (固定: タッチ開始点)
+let joyTouchId = null;
+let joyKeyCode = null;
+let joyRepeat = null;
+
+function angleToMoveKey(dx, dy) {
+    // dy正=下=South。8方向NetHackキー
+    const a = ((Math.atan2(dy, dx) * 180 / Math.PI) + 360) % 360;
+    if (a >= 337.5 || a < 22.5)  return 108; // E = l
+    if (a < 67.5)                 return 110; // SE = n
+    if (a < 112.5)                return 106; // S = j
+    if (a < 157.5)                return 98;  // SW = b
+    if (a < 202.5)                return 104; // W = h
+    if (a < 247.5)                return 121; // NW = y
+    if (a < 292.5)                return 107; // N = k
+    return 117;                               // NE = u
+}
+
+function joyStart(cx, cy) {
+    joyActive = true;
+    joyCX = cx; joyCY = cy;
+    joyOuter.style.left = cx + 'px';
+    joyOuter.style.top  = cy + 'px';
+    joyOuter.style.display = 'block';
+    joyThumb.style.transform = 'translate(-50%,-50%)';
+}
+
+function joyMove(tx, ty) {
+    if (!joyActive) return;
+    const dx = tx - joyCX, dy = ty - joyCY;
+    const dist = Math.hypot(dx, dy);
+    const clamp = Math.min(dist, JOY_R);
+    const angle = Math.atan2(dy, dx);
+    const tx2 = Math.cos(angle) * clamp;
+    const ty2 = Math.sin(angle) * clamp;
+    // サムを追従 (外円中心からの相対座標)
+    joyThumb.style.transform = `translate(calc(-50% + ${tx2}px), calc(-50% + ${ty2}px))`;
+
+    if (dist < JOY_DEAD) {
+        stopJoyRepeat();
+        return;
+    }
+    const key = angleToMoveKey(dx, dy);
+    if (key !== joyKeyCode) {
+        stopJoyRepeat();
+        joyKeyCode = key;
+        sendKey(key);
+        joyRepeat = setInterval(() => sendKey(key), 200);
+    }
+}
+
+function stopJoyRepeat() {
+    if (joyRepeat) { clearInterval(joyRepeat); joyRepeat = null; }
+    joyKeyCode = null;
+}
+
+function joyEnd() {
+    joyActive = false;
+    joyTouchId = null;
+    stopJoyRepeat();
+    joyOuter.style.display = 'none';
+}
+
+joyZone?.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (joyTouchId !== null) return;
+    const t = e.changedTouches[0];
+    joyTouchId = t.identifier;
+    joyStart(t.clientX, t.clientY);
+}, { passive: false });
+
+joyZone?.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+        if (t.identifier === joyTouchId) { joyMove(t.clientX, t.clientY); break; }
+    }
+}, { passive: false });
+
+joyZone?.addEventListener('touchend', (e) => {
+    for (const t of e.changedTouches) {
+        if (t.identifier === joyTouchId) { joyEnd(); break; }
+    }
+}, { passive: false });
+joyZone?.addEventListener('touchcancel', joyEnd);
+
+// ━━ カメラスワイプ ━━
+const camZone = document.getElementById('cam-zone');
+let camTouchId  = null;
+let camStartX   = 0;
+let camBaseYaw  = 0; // スワイプ開始時のオフセット
+let camYawOffset = 0;
+let camSwipeDist = 0; // タップ判定用 (移動距離が小さければタップ)
+
+camZone?.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (camTouchId !== null) return;
+    const t = e.changedTouches[0];
+    camTouchId = t.identifier;
+    camStartX  = t.clientX;
+    camBaseYaw = camYawOffset;
+    camSwipeDist = 0;
+}, { passive: false });
+
+camZone?.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+        if (t.identifier !== camTouchId) continue;
+        const dx = t.clientX - camStartX;
+        camSwipeDist = Math.max(camSwipeDist, Math.abs(dx));
+        if (currentCamMode !== 'TOP') {
+            // 画面幅1/3 ≈ 180度
+            camYawOffset = camBaseYaw + dx * (Math.PI / (window.innerWidth * 0.4));
+            nethack3d?.set_cam_yaw_offset_nethack3d(camYawOffset);
+        }
+        break;
+    }
+}, { passive: false });
+
+camZone?.addEventListener('touchend', (e) => {
+    for (const t of e.changedTouches) {
+        if (t.identifier !== camTouchId) continue;
+        camTouchId = null;
+        // タップ判定 (ドラッグ距離 < 10px)
+        if (camSwipeDist < 10) showEntityPopupAtTouch(t.clientX, t.clientY);
+        break;
+    }
+}, { passive: false });
+camZone?.addEventListener('touchcancel', () => { camTouchId = null; });
+
+// ━━ エンティティ情報ポップアップ ━━
+const entityPopup = document.getElementById('entity-popup');
+const epEmoji  = document.getElementById('ep-emoji');
+const epTitle  = document.getElementById('ep-title');
+const epRow1   = document.getElementById('ep-row1');
+const epRow2   = document.getElementById('ep-row2');
+let popupTimer = null;
+let entityList = []; // { tx, tz, ch } — update3dMap()で更新
+
+const MONSTER_INFO = {
+    'a':{ name:'アリ',    en:'ant',       emoji:'🐜' },
+    'b':{ name:'コウモリ',en:'bat',       emoji:'🦇' },
+    'c':{ name:'ネコ',    en:'cat',       emoji:'🐱' },
+    'd':{ name:'犬',      en:'dog',       emoji:'🐕' },
+    'D':{ name:'ドラゴン',en:'dragon',    emoji:'🐉' },
+    'e':{ name:'目玉',    en:'eye',       emoji:'👁' },
+    'f':{ name:'ネコ科',  en:'feline',    emoji:'🐱' },
+    'g':{ name:'ゴブリン',en:'goblin',    emoji:'👺' },
+    'G':{ name:'ジャイアント',en:'giant', emoji:'👹' },
+    'h':{ name:'ドワーフ',en:'dwarf',     emoji:'⛏️' },
+    'i':{ name:'インプ',  en:'imp',       emoji:'😈' },
+    'j':{ name:'ジェリー',en:'jelly',     emoji:'🫧' },
+    'k':{ name:'コボルト',en:'kobold',    emoji:'👾' },
+    'l':{ name:'レプラコーン',en:'leprechaun',emoji:'🍀' },
+    'm':{ name:'ミミック',en:'mimic',     emoji:'📦' },
+    'n':{ name:'ニンフ',  en:'nymph',     emoji:'🧜' },
+    'o':{ name:'オーク',  en:'orc',       emoji:'👹' },
+    'O':{ name:'オーガ',  en:'ogre',      emoji:'👹' },
+    'r':{ name:'ネズミ',  en:'rat',       emoji:'🐀' },
+    's':{ name:'クモ',    en:'spider',    emoji:'🕷️' },
+    'S':{ name:'ヘビ',    en:'snake',     emoji:'🐍' },
+    't':{ name:'トロール',en:'troll',     emoji:'🧌' },
+    'u':{ name:'ユニコーン',en:'unicorn', emoji:'🦄' },
+    'v':{ name:'ヴァンパイア',en:'vampire',emoji:'🧛' },
+    'w':{ name:'ウォーム',en:'worm',      emoji:'🪱' },
+    'W':{ name:'レイス',  en:'wraith',    emoji:'👻' },
+    'z':{ name:'ゾンビ',  en:'zombie',    emoji:'🧟' },
+    'Z':{ name:'ゾンビ',  en:'zombie',    emoji:'🧟' },
+};
+const DOG_SIZES  = ['小型 (子犬)', '中型', '大型'];
+const DOG_COLORS = ['茶色', 'クリーム/白', '黒', '濃い茶', 'グレー'];
+
+function worldToScreen(wx, wy, wz, vp16, sw, sh) {
+    // vp16: column-major 4x4 (col0=[vp[0][0..3]], ...)
+    const cx = vp16[0]*wx + vp16[4]*wy + vp16[8]*wz  + vp16[12];
+    const cy = vp16[1]*wx + vp16[5]*wy + vp16[9]*wz  + vp16[13];
+    const cw = vp16[3]*wx + vp16[7]*wy + vp16[11]*wz + vp16[15];
+    if (cw <= 0) return null;
+    return [
+        (cx/cw + 1) * 0.5 * sw,
+        (1 - cy/cw) * 0.5 * sh,
+    ];
+}
+
+function showEntityPopupAtTouch(tx, ty) {
+    if (!nethack3d || entityList.length === 0) return;
+    let vp16;
+    try { vp16 = nethack3d.get_vp_flat_nethack3d(); } catch(e) { return; }
+    const sw = window.innerWidth, sh = window.innerHeight;
+    let best = null, bestDist = 60; // px threshold
+
+    for (const ent of entityList) {
+        const sc = worldToScreen(ent.tx + 0.5, 0.5, ent.tz + 0.5, vp16, sw, sh);
+        if (!sc) continue;
+        const d = Math.hypot(sc[0] - tx, sc[1] - ty);
+        if (d < bestDist) { bestDist = d; best = ent; }
+    }
+    if (!best) return;
+
+    // 情報組み立て
+    let emoji = '?', title = '???', row1 = '', row2 = '';
+    const hash = (best.tx * 13 + best.tz * 7);
+
+    if (best.ch === '@') {
+        emoji = '🧙'; title = 'プレイヤー (Player)';
+        row1 = `位置: (${best.tx}, ${best.tz})`;
+        row2 = '探索者よ、気をつけて！';
+    } else if (best.ch === 'd') {
+        emoji = '🐕'; title = '犬 (Dog)';
+        const szIdx = hash % 3;
+        const colIdx = (best.tx * 7 + best.tz * 11) % 5;
+        row1 = `サイズ: ${DOG_SIZES[szIdx]}`;
+        row2 = `毛色: ${DOG_COLORS[colIdx]}`;
+    } else if (best.ch === '<') {
+        emoji = '🔼'; title = '上り階段';
+        row1 = '< を押すと昇れます';
+    } else if (best.ch === '>') {
+        emoji = '🔽'; title = '下り階段';
+        row1 = '> を押すと降りられます';
+    } else if ('$:!?/=%*'.includes(best.ch)) {
+        const itemEmojis = { '$':'💰', ':':'🍖', '!':'⚗️', '?':'📜', '/':'🪄', '=':'💍', '%':'🍎', '*':'💎' };
+        emoji = itemEmojis[best.ch] || '✨';
+        title = 'アイテム (Item)';
+        row1 = `, を押して拾う`;
+    } else {
+        const info = MONSTER_INFO[best.ch];
+        emoji = info?.emoji || '👾';
+        title = info ? `${info.name} (${info.en})` : `モンスター (${best.ch})`;
+        row1 = '危険! 戦闘中は注意';
+    }
+
+    epEmoji.textContent = emoji;
+    epTitle.textContent = title;
+    epRow1.innerHTML  = row1 ? `<span>${row1}</span>` : '';
+    epRow2.innerHTML  = row2 ? `<span>${row2}</span>` : '';
+
+    // ポップアップ位置 (タップ点の上に表示, 画面端考慮)
+    entityPopup.style.display = 'block';
+    const pw = entityPopup.offsetWidth  || 180;
+    const ph = entityPopup.offsetHeight || 100;
+    let px = tx - pw * 0.5;
+    let py = ty - ph - 16;
+    px = Math.max(6, Math.min(sw - pw - 6, px));
+    py = Math.max(44, py);
+    entityPopup.style.left = px + 'px';
+    entityPopup.style.top  = py + 'px';
+
+    if (popupTimer) clearTimeout(popupTimer);
+    popupTimer = setTimeout(() => { entityPopup.style.display = 'none'; }, 3000);
+}
+
+// canvas タップ (非ジョイスティック側でエンティティ検出)
+canvas3d.addEventListener('touchend', (e) => {
+    if (e.changedTouches.length === 1) {
+        const t = e.changedTouches[0];
+        showEntityPopupAtTouch(t.clientX, t.clientY);
+    }
+}, { passive: true });
+
+// ポップアップを画面タップで消す
+document.addEventListener('touchstart', (e) => {
+    if (entityPopup.style.display !== 'none') {
+        entityPopup.style.display = 'none';
+        if (popupTimer) { clearTimeout(popupTimer); popupTimer = null; }
+    }
+}, { passive: true });
+
+
 
 // ━━ Y/N タッチオーバーレイ ━━
 const ynOverlay = document.getElementById('yn-overlay');
@@ -1313,6 +1772,9 @@ import init3d, {
     set_player_nethack3d,
     switch_camera_nethack3d,
     camera_name_nethack3d,
+    set_cam_yaw_offset_nethack3d,
+    reset_cam_yaw_offset_nethack3d,
+    get_vp_flat_nethack3d,
 } from './wasm/nethack3d.js';
 
 await init3d();
@@ -1320,6 +1782,9 @@ nethack3d = {
     init_nethack3d, tick_nethack3d,
     set_map_nethack3d, set_player_nethack3d,
     switch_camera_nethack3d, camera_name_nethack3d,
+    set_cam_yaw_offset_nethack3d,
+    reset_cam_yaw_offset_nethack3d,
+    get_vp_flat_nethack3d,
 };
 await init_nethack3d('canvas3d');
 startRaf();

@@ -19,6 +19,7 @@ pub struct Nethack3dState {
     pub vis_z:        f32,
     pub vis_angle:    f32,          // ラジアン
     pub cam_mode:     CameraMode,
+    pub cam_yaw_offset: f32,   // タッチスワイプによるカメラヨー追加回転
     pub time:         f32,
     pub prev_ts:      f64,
 }
@@ -34,6 +35,7 @@ impl Nethack3dState {
             vis_x: 40.0, vis_z: 12.0,
             vis_angle: std::f32::consts::FRAC_PI_2,
             cam_mode: CameraMode::Tps,
+            cam_yaw_offset: 0.0,
             time: 0.0,
             prev_ts: 0.0,
         }
@@ -57,6 +59,20 @@ impl Nethack3dState {
             CameraMode::Top => CameraMode::Fps,
             CameraMode::Fps => CameraMode::Tps,
         };
+    }
+
+    pub fn set_cam_yaw_offset(&mut self, v: f32) {
+        self.cam_yaw_offset = v;
+    }
+
+    pub fn reset_cam_yaw_offset(&mut self) {
+        self.cam_yaw_offset = 0.0;
+    }
+
+    /// VP行列をフラット配列で返す (column-major 16 floats) — JS側でエンティティ投影に使用
+    pub fn get_vp_flat(&self) -> Vec<f32> {
+        let vp = self.calc_vp();
+        vp.iter().flat_map(|col| col.iter().copied()).collect()
     }
 
     pub fn camera_name(&self) -> &'static str {
@@ -138,21 +154,21 @@ impl Nethack3dState {
             }
             CameraMode::Tps => {
                 let proj = perspective(0.75, asp, 0.1, 80.0);
-                // 後方斜め上 (向き対応)
-                let back_x = -self.vis_angle.cos() * 5.0;
-                let back_z = -self.vis_angle.sin() * 5.0;
+                let angle = self.vis_angle + self.cam_yaw_offset;
+                let back_x = -angle.cos() * 5.0;
+                let back_z = -angle.sin() * 5.0;
                 let view = look_at(
                     [px + back_x, 3.5, pz + back_z],
-                    [px + self.vis_angle.cos() * 2.0, 0.5, pz + self.vis_angle.sin() * 2.0],
+                    [px + angle.cos() * 2.0, 0.5, pz + angle.sin() * 2.0],
                     up,
                 );
                 mat_mul(proj, view)
             }
             CameraMode::Fps => {
-                // 一人称視点: 広めFOVで壁の中に入りにくく
                 let proj = perspective(1.05, asp, 0.05, 60.0);
-                let fwd_x = self.vis_angle.cos();
-                let fwd_z = self.vis_angle.sin();
+                let angle = self.vis_angle + self.cam_yaw_offset;
+                let fwd_x = angle.cos();
+                let fwd_z = angle.sin();
                 let view = look_at(
                     [px, 0.65, pz],
                     [px + fwd_x * 4.0, 0.65, pz + fwd_z * 4.0],

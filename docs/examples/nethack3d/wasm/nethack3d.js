@@ -18,6 +18,17 @@ export function camera_name_nethack3d() {
 }
 
 /**
+ * VP行列をフラット配列で返す (column-major 16 floats)
+ * @returns {Float32Array}
+ */
+export function get_vp_flat_nethack3d() {
+    const ret = wasm.get_vp_flat_nethack3d();
+    var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+    return v1;
+}
+
+/**
  * キャンバスIDを指定して3Dレンダラーを初期化
  * @param {string} canvas_id
  * @returns {Promise<void>}
@@ -27,6 +38,21 @@ export function init_nethack3d(canvas_id) {
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.init_nethack3d(ptr0, len0);
     return ret;
+}
+
+/**
+ * カメラヨーオフセットをリセット (プレイヤー移動後に呼ぶ)
+ */
+export function reset_cam_yaw_offset_nethack3d() {
+    wasm.reset_cam_yaw_offset_nethack3d();
+}
+
+/**
+ * カメラヨーオフセット設定 (タッチスワイプ用, ラジアン)
+ * @param {number} v
+ */
+export function set_cam_yaw_offset_nethack3d(v) {
+    wasm.set_cam_yaw_offset_nethack3d(v);
 }
 
 /**
@@ -1079,7 +1105,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 27, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 28, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__ha906136a6d427c72);
             return ret;
         },
