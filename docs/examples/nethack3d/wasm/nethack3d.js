@@ -727,6 +727,9 @@ function __wbg_get_imports() {
         __wbg_linkProgram_ba72b321b45bac4c: function(arg0, arg1) {
             arg0.linkProgram(arg1);
         },
+        __wbg_log_72d22df918dcc232: function(arg0) {
+            console.log(arg0);
+        },
         __wbg_new_227d7c05414eb861: function() {
             const ret = new Error();
             return ret;
@@ -1105,7 +1108,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 28, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 30, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__ha906136a6d427c72);
             return ret;
         },

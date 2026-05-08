@@ -10,6 +10,12 @@ use wasm_bindgen::prelude::*;
 use std::cell::RefCell;
 use crate::state::Nethack3dState;
 
+macro_rules! log {
+    ($($t:tt)*) => {
+        web_sys::console::log_1(&JsValue::from_str(&format!($($t)*)));
+    }
+}
+
 thread_local! {
     static STATE: RefCell<Option<Nethack3dState>> = RefCell::new(None);
 }
@@ -18,18 +24,29 @@ thread_local! {
 #[wasm_bindgen]
 pub async fn init_nethack3d(canvas_id: String) -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
+    log!("[3D] init_nethack3d start canvas_id={}", canvas_id);
+
     let window   = web_sys::window().ok_or("no window")?;
     let document = window.document().ok_or("no document")?;
+    log!("[3D] document acquired");
+
     let canvas: web_sys::HtmlCanvasElement = document
         .get_element_by_id(&canvas_id)
         .ok_or("canvas not found")?
         .dyn_into()
         .map_err(|_| "not a canvas")?;
+    log!("[3D] canvas found w={} h={}", canvas.width(), canvas.height());
 
     let gpu = gpu::GpuState::new(canvas).await
-        .map_err(|e| JsValue::from_str(&e))?;
+        .map_err(|e| {
+            log!("[3D] GpuState::new ERROR: {}", e);
+            JsValue::from_str(&e)
+        })?;
+    log!("[3D] GpuState ready");
+
     let s = Nethack3dState::new(gpu);
     STATE.with(|st| *st.borrow_mut() = Some(s));
+    log!("[3D] init_nethack3d DONE");
     Ok(())
 }
 

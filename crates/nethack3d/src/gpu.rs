@@ -3,6 +3,12 @@
 use crate::shader::SHADER;
 use crate::geometry::{Vertex, Uni, STRIDE};
 
+macro_rules! log {
+    ($($t:tt)*) => {
+        web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(&format!($($t)*)));
+    }
+}
+
 pub const MAX_VERTS: usize = 65536;
 pub const MAX_IDX:   usize = 131072;
 
@@ -23,25 +29,35 @@ pub struct GpuState {
 impl GpuState {
     pub async fn new(canvas: web_sys::HtmlCanvasElement) -> Result<Self, String> {
         let (w, h) = (canvas.width(), canvas.height());
+        log!("[3D] GpuState::new start w={} h={}", w, h);
+
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::GL, ..Default::default()
         });
+        log!("[3D] wgpu::Instance created");
+
         let surface = instance.create_surface(wgpu::SurfaceTarget::Canvas(canvas))
             .map_err(|e| e.to_string())?;
+        log!("[3D] surface created");
+
         let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
             compatible_surface: Some(&surface),
             power_preference: wgpu::PowerPreference::None,
             force_fallback_adapter: false,
         }).await.ok_or("no adapter")?;
+        log!("[3D] adapter acquired: {:?}", adapter.get_info().backend);
+
         let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor {
             label: None,
             required_features: wgpu::Features::empty(),
             required_limits: wgpu::Limits::downlevel_webgl2_defaults()
                 .using_resolution(adapter.limits()),
         }, None).await.map_err(|e| e.to_string())?;
+        log!("[3D] device+queue created");
 
         let caps = surface.get_capabilities(&adapter);
         let fmt  = caps.formats.iter().find(|f| f.is_srgb()).copied().unwrap_or(caps.formats[0]);
+        log!("[3D] surface format: {:?}", fmt);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT, format: fmt,
             width: w, height: h, present_mode: wgpu::PresentMode::Fifo,
@@ -49,7 +65,9 @@ impl GpuState {
             view_formats: vec![], desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &config);
+        log!("[3D] surface configured");
         let depth_view = make_depth(&device, w, h);
+        log!("[3D] depth texture created");
 
         let uni_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("uni"), size: std::mem::size_of::<Uni>() as u64,
@@ -69,9 +87,11 @@ impl GpuState {
             label: None, layout: &bgl,
             entries: &[wgpu::BindGroupEntry { binding: 0, resource: uni_buf.as_entire_binding() }],
         });
+        log!("[3D] bind group created");
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("nethack3d"), source: wgpu::ShaderSource::Wgsl(SHADER.into()),
         });
+        log!("[3D] shader module created");
         let pll = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None, bind_group_layouts: &[&bgl], push_constant_ranges: &[],
         });
@@ -105,6 +125,7 @@ impl GpuState {
             }),
             multisample: wgpu::MultisampleState::default(), multiview: None,
         });
+        log!("[3D] render pipeline created");
         let vert_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("verts"), size: (MAX_VERTS * STRIDE as usize) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
@@ -115,6 +136,7 @@ impl GpuState {
             usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        log!("[3D] GpuState::new COMPLETE");
         Ok(GpuState {
             surface, device, queue, pipeline,
             uni_buf, bind_group, vert_buf, idx_buf, depth_view,

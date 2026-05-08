@@ -1777,7 +1777,9 @@ import init3d, {
     get_vp_flat_nethack3d,
 } from './wasm/nethack3d.js';
 
+console.log('[LOAD] init3d() start');
 await init3d();
+console.log('[LOAD] init3d() done');
 nethack3d = {
     init_nethack3d, tick_nethack3d,
     set_map_nethack3d, set_player_nethack3d,
@@ -1786,12 +1788,21 @@ nethack3d = {
     reset_cam_yaw_offset_nethack3d,
     get_vp_flat_nethack3d,
 };
-await init_nethack3d('canvas3d');
+console.log('[LOAD] init_nethack3d() start');
+try {
+    await init_nethack3d('canvas3d');
+    console.log('[LOAD] init_nethack3d() done');
+} catch(e) {
+    console.error('[LOAD] init_nethack3d() FAILED:', e);
+    loadingEl.textContent = '3D init error: ' + e;
+    throw e;
+}
 startRaf();
 
 camBtn.textContent = '📷 ' + camera_name_nethack3d();
 
 loadingEl.textContent = 'Loading NetHack WASM...\n(初回は数秒かかります)';
+console.log('[LOAD] NetHack WASM load start');
 
 // 2. NetHack WASM をロード
 import NetHackFactory from '../nethack/nethack.js';
@@ -1814,6 +1825,7 @@ const Module = {
 };
 
 wasmModule = await NetHackFactory(Module);
+console.log('[LOAD] NetHack WASM factory done');
 focusMobileInput();
 </script>
 </body>
