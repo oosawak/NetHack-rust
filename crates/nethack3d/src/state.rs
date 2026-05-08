@@ -122,7 +122,7 @@ impl Nethack3dState {
         let uni = Uni {
             vp,
             time: self.time,
-            warp: 0.0,
+            warp: if matches!(self.cam_mode, CameraMode::Top) { 1.0 } else { 0.0 },
             pad: [0.0; 2],
             lights: [lights[0], lights[1], lights[2], lights[3]],
             fog_col: [0.0, 0.0, 0.0, 1.0],

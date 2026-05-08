@@ -408,34 +408,86 @@ fn push_box(
     push_quad(verts, idxs, [x1,y1,z0],[x1,y1,z1],[x1,y0,z1],[x1,y0,z0], col);
 }
 
-/// プレイヤーキャラクター (ボックス人型 — どの角度でも立体的)
+/// プレイヤーキャラクター — 全身騎士型ボックスモデル (鎧・剣・盾付き)
 pub fn build_player(
     verts: &mut Vec<Vertex>, idxs: &mut Vec<u32>,
     px: f32, pz: f32, time: f32,
 ) {
-    let bob = (time * 3.2).sin() * 0.025;
+    let walk = (time * 4.5).sin();
+    let bob  = (time * 9.0).sin().abs() * 0.013; // 腰より上のボブ (常に正)
+    let lf   =  walk * 0.055; // 脚の前後振り (右脚前)
+    let af   = -walk * 0.040; // 腕の前後振り (右腕逆位相)
+    let sy   = bob;           // 腰より上全体のY オフセット
 
-    // 胴体ボックス
-    let col_body = [0.50, 0.70, 1.00, 3.0_f32]; // 青白発光
-    push_box(verts, idxs,
-        px - 0.14, 0.0,        pz - 0.10,
-        px + 0.14, 0.46 + bob, pz + 0.10,
-        col_body);
+    // ── 色定義 ──
+    let boot_col  = [0.18, 0.12, 0.07, 3.0_f32]; // 黒革ブーツ
+    let leg_col   = [0.24, 0.20, 0.15, 3.0_f32]; // レザーレギンス
+    let belt_col  = [0.32, 0.20, 0.08, 3.0_f32]; // 茶革ベルト
+    let armor_col = [0.58, 0.62, 0.72, 3.0_f32]; // チェインメイル (シルバー)
+    let arm_col   = [0.52, 0.56, 0.66, 3.0_f32]; // 袖鎧
+    let neck_col  = [0.93, 0.80, 0.66, 3.0_f32]; // 肌 (首)
+    let head_col  = [0.95, 0.83, 0.70, 3.0_f32]; // 顔
+    let helm_col  = [0.48, 0.50, 0.60, 3.0_f32]; // ヘルメット (くすんだ鉄)
+    let visor_col = [0.22, 0.22, 0.28, 3.0_f32]; // バイザー (暗い)
+    let sword_col = [0.88, 0.85, 0.60, 3.0_f32]; // 剣の刃 (金属)
+    let guard_col = [0.72, 0.68, 0.40, 3.0_f32]; // 鍔 (金)
+    let grip_col  = [0.28, 0.14, 0.06, 3.0_f32]; // 柄 (革)
+    let shld_col  = [0.20, 0.32, 0.65, 3.0_f32]; // 盾 (青)
+    let boss_col  = [0.65, 0.65, 0.38, 3.0_f32]; // 盾中央ボス (金)
 
-    // 頭部ボックス
-    let col_head = [1.00, 0.88, 0.72, 3.0_f32]; // 肌色発光
-    let head_y0 = 0.50 + bob;
-    let head_y1 = 0.74 + bob;
-    push_box(verts, idxs,
-        px - 0.11, head_y0, pz - 0.11,
-        px + 0.11, head_y1, pz + 0.11,
-        col_head);
+    // ── 右脚 (前進) ──
+    push_box(verts, idxs, px+0.02,0.00,pz-0.09+lf, px+0.12,0.07,pz+0.04+lf, boot_col);
+    push_box(verts, idxs, px+0.03,0.07,pz-0.08+lf, px+0.11,0.32,pz+0.03+lf, leg_col);
 
-    // 足元の光輪 (小さい発光床クワッド)
+    // ── 左脚 (後退) ──
+    push_box(verts, idxs, px-0.12,0.00,pz-0.09-lf, px-0.02,0.07,pz+0.04-lf, boot_col);
+    push_box(verts, idxs, px-0.11,0.07,pz-0.08-lf, px-0.03,0.32,pz+0.03-lf, leg_col);
+
+    // ── 腰ベルト ──
+    push_box(verts, idxs, px-0.14,sy+0.30,pz-0.10, px+0.14,sy+0.36,pz+0.10, belt_col);
+
+    // ── 胴体 (鎧) ──
+    push_box(verts, idxs, px-0.14,sy+0.35,pz-0.10, px+0.14,sy+0.60,pz+0.10, armor_col);
+
+    // ── 右腕 (剣側・腕は逆位相) ──
+    push_box(verts, idxs, px+0.14,sy+0.36,pz-0.08+af, px+0.23,sy+0.58,pz+0.07+af, arm_col);
+
+    // ── 左腕 (盾側) ──
+    push_box(verts, idxs, px-0.23,sy+0.36,pz-0.08-af, px-0.14,sy+0.58,pz+0.07-af, arm_col);
+
+    // ── 首 ──
+    push_box(verts, idxs, px-0.05,sy+0.59,pz-0.05, px+0.05,sy+0.65,pz+0.05, neck_col);
+
+    // ── 頭 ──
+    push_box(verts, idxs, px-0.10,sy+0.63,pz-0.10, px+0.10,sy+0.83,pz+0.10, head_col);
+
+    // ── ヘルメット + バイザー ──
+    push_box(verts, idxs, px-0.11,sy+0.78,pz-0.11, px+0.11,sy+0.92,pz+0.11, helm_col);
+    push_box(verts, idxs, px-0.09,sy+0.69,pz-0.115, px+0.09,sy+0.78,pz-0.100, visor_col);
+
+    // ── 剣 (右手) — 腕の振りに追随 ──
+    let sz  = pz - 0.04 + af;      // 剣のZ中心
+    let sy2 = sy + 0.36;            // 腕の付け根Y
+    // 柄
+    push_box(verts, idxs, px+0.176,sy2-0.20,sz-0.020, px+0.204,sy2-0.03,sz+0.020, grip_col);
+    // 鍔
+    push_box(verts, idxs, px+0.12,sy2-0.04,sz-0.025, px+0.26,sy2+0.02,sz+0.025, guard_col);
+    // 刃 (頭上まで伸びる長めの刃)
+    push_box(verts, idxs, px+0.175,sy2+0.01,sz-0.022, px+0.205,sy2+0.55,sz+0.022, sword_col);
+
+    // ── 盾 (左手) — 腕の振りと逆位相 ──
+    let shz = pz - 0.02 - af;
+    let shy = sy + 0.28;
+    // 盾本体 (平たい青い板)
+    push_box(verts, idxs, px-0.34,shy,shz-0.03, px-0.17,shy+0.30,shz+0.03, shld_col);
+    // 盾中央ボス (前方に少し飛び出す)
+    push_box(verts, idxs, px-0.29,shy+0.10,shz-0.06, px-0.22,shy+0.20,shz-0.02, boss_col);
+
+    // ── 足元の光輪 ──
     push_quad(verts, idxs,
-        [px-0.18, 0.005, pz-0.18],
-        [px+0.18, 0.005, pz-0.18],
-        [px+0.18, 0.005, pz+0.18],
-        [px-0.18, 0.005, pz+0.18],
-        [0.4, 0.55, 1.0, 3.0]);
+        [px-0.22, 0.005, pz-0.22],
+        [px+0.22, 0.005, pz-0.22],
+        [px+0.22, 0.005, pz+0.22],
+        [px-0.22, 0.005, pz+0.22],
+        [0.40, 0.55, 1.0, 3.0]);
 }
