@@ -185,9 +185,12 @@ impl Nethack3dState {
                 let angle = self.vis_angle + self.cam_yaw_offset;
                 let fwd_x = angle.cos();
                 let fwd_z = angle.sin();
+                // プレイヤーモデルの前方に出す (中に入らないよう +0.38 オフセット)
+                let eye_x = px + fwd_x * 0.38;
+                let eye_z = pz + fwd_z * 0.38;
                 let view = look_at(
-                    [px, 0.65, pz],
-                    [px + fwd_x * 4.0, 0.65, pz + fwd_z * 4.0],
+                    [eye_x, 0.72, eye_z],
+                    [eye_x + fwd_x * 4.0, 0.72, eye_z + fwd_z * 4.0],
                     up,
                 );
                 mat_mul(proj, view)
