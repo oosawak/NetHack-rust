@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>NetHack 5.0 - WASM</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -118,6 +119,48 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
 .menu-item.selected { color: #ff0; }
 .menu-item .key { color: #0f0; display: inline-block; width: 20px; }
 #menu-box .footer { color: #888; font-size: 12px; margin-top: 8px; border-top: 1px solid #333; padding-top: 4px; }
+
+/* モバイルキーボードボタン */
+#keyboard-btn {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    background: #ff0;
+    color: #000;
+    border: none;
+    border-radius: 50%;
+    width: 52px;
+    height: 52px;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    display: none;
+}
+#keyboard-hint {
+    color: #555;
+    font-size: 11px;
+    text-align: center;
+    margin-top: 4px;
+    display: none;
+}
+/* モバイル検出時に表示 */
+@media (pointer: coarse) {
+    #keyboard-btn { display: block; }
+    #keyboard-hint { display: block; }
+}
+/* 隠しモバイル入力 */
+#mobile-input {
+    position: fixed;
+    opacity: 0;
+    top: 0; left: 0;
+    width: 1px; height: 1px;
+    font-size: 16px; /* iOSズームを防止 */
+    border: none;
+    background: transparent;
+    z-index: -1;
+}
+
 </style>
 </head>
 <body>
@@ -126,8 +169,18 @@ h1 { color: #ff0; font-size: 14px; margin-bottom: 4px; }
 <div id="game-container">
     <div id="messages"></div>
     <canvas id="map-canvas"></canvas>
+    <div id="keyboard-hint">📱 タップしてキーボードを表示</div>
     <div id="status"></div>
 </div>
+
+<!-- モバイル用隠し入力 -->
+<input type="text" id="mobile-input"
+    autocomplete="off" autocorrect="off"
+    autocapitalize="none" spellcheck="false"
+    inputmode="text" />
+
+<!-- モバイルキーボードボタン -->
+<button id="keyboard-btn" title="キーボード表示">⌨️</button>
 
 <!-- テキスト入力オーバーレイ -->
 <div id="input-overlay">
@@ -243,8 +296,26 @@ function setTile(x, y, ch, color, bgColor) {
 let keyQueue = [];
 let keyResolve = null;
 
-document.addEventListener('keydown', (e) => {
-    // ゲームキー処理
+const mobileInput = document.getElementById('mobile-input');
+const keyboardBtn = document.getElementById('keyboard-btn');
+
+// モバイル用: キャンバスタップでキーボード表示
+canvas.addEventListener('click', () => {
+    mobileInput.focus();
+});
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    mobileInput.focus();
+});
+
+// ⌨️ボタンでキーボード表示
+keyboardBtn.addEventListener('click', () => {
+    mobileInput.value = '';
+    mobileInput.focus();
+});
+
+// キー入力の共通処理
+function processKeyEvent(e) {
     const key = nethackKeyCode(e);
     if (key !== null) {
         e.preventDefault();
@@ -255,6 +326,32 @@ document.addEventListener('keydown', (e) => {
         } else {
             keyQueue.push(key);
         }
+    }
+}
+
+// PC キーボード（canvasフォーカス不要に）
+document.addEventListener('keydown', processKeyEvent);
+
+// モバイル用: 隠し入力への入力
+mobileInput.addEventListener('keydown', (e) => {
+    processKeyEvent(e);
+    // 入力フィールドをクリアして次の入力を受け付ける
+    setTimeout(() => { mobileInput.value = ''; }, 0);
+});
+
+// input イベント（keydownが発火しない入力メソッドに対応）
+mobileInput.addEventListener('input', (e) => {
+    const val = mobileInput.value;
+    if (!val) return;
+    const ch = val[val.length - 1]; // 最後の1文字
+    mobileInput.value = '';
+    const code = ch.charCodeAt(0);
+    if (keyResolve) {
+        const resolve = keyResolve;
+        keyResolve = null;
+        resolve(code);
+    } else {
+        keyQueue.push(code);
     }
 });
 
@@ -425,6 +522,7 @@ async function nethackCallback(name, ...args) {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('game-container').style.display = 'flex';
         canvas.focus();
+        mobileInput.focus();
         return;
 
     case 'shim_askname': {
