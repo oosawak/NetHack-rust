@@ -1776,6 +1776,9 @@ function selectMenuItems(winId, how) {
 
         // アイテム描画
         menu.items.forEach((item, idx) => {
+            // テキストが空のアイテムは非表示
+            if (!item.str || item.str.trim() === '') return;
+
             const div = document.createElement('div');
             div.className = 'menu-item';
             div.dataset.idx = idx;
