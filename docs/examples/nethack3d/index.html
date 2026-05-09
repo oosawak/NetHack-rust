@@ -1255,6 +1255,19 @@ function rotate90(cw) { rotatePlayerFacing(cw); rotatePlayerFacing(cw); } // 45�
 document.getElementById('rot-left-btn')?.addEventListener('click',  () => rotate90(false));
 document.getElementById('rot-right-btn')?.addEventListener('click', () => rotate90(true));
 
+// 移動方向キー → facing マッピング (k=N,l=E,j=S,h=W,u=NE,n=SE,b=SW,y=NW)
+const KEY_TO_FACING = {107:0, 108:1, 106:2, 104:3, 117:4, 110:5, 98:6, 121:7};
+
+// TOPカメラ時: 移動方向に自動で正面を向く
+function autoFaceDir(remappedKey) {
+    if (currentCamMode !== 'TOP') return;
+    const f = KEY_TO_FACING[remappedKey];
+    if (f !== undefined && f !== playerFacing) {
+        playerFacing = f;
+        if (nethack3d) nethack3d.set_player_nethack3d(player3dX, player3dZ, playerFacing);
+    }
+}
+
 // L/R ショルダーボタン (カメラ回転) - ポインターイベント対応
 (function() {
     function makeShoulderRepeat(btn, cw) {
@@ -1344,7 +1357,9 @@ function processKeyEvent(e) {
     const key = nethackKeyCode(e);
     if (key !== null) {
         e.preventDefault();
-        sendKey(remapDirKey(key)); // HJKL・矢印キーもDパッドと同じリマップを適用
+        const remapped = remapDirKey(key);
+        autoFaceDir(remapped);
+        sendKey(remapped); // HJKL・矢印キーもDパッドと同じリマップを適用
     }
 }
 document.addEventListener('keydown', processKeyEvent);
@@ -1488,8 +1503,9 @@ function dpadFire(btn) {
     dpadStop();
     btn.classList.add('active');
     dpadRepeatKey = key;
+    autoFaceDir(key);
     sendKey(key);
-    dpadRepeatTimer = setInterval(() => sendKey(key), 150);
+    dpadRepeatTimer = setInterval(() => { autoFaceDir(key); sendKey(key); }, 150);
 }
 
 document.getElementById('dpad-wrap')?.addEventListener('pointerdown', (e) => {
