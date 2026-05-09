@@ -1625,36 +1625,57 @@ function showEntityPopupAtTouch(tx, ty) {
     }
     if (!best) return;
 
+    // 距離ヘルパー
+    const px = Math.round(player3dX), pz = Math.round(player3dZ);
+    const isSameTile = best.tx === px && best.tz === pz;
+    const isAdjacent = Math.abs(best.tx - px) <= 1 && Math.abs(best.tz - pz) <= 1
+                       && !isSameTile;
+
     // 情報組み立て
     let emoji = '?', title = '???', row1 = '', row2 = '';
     const hash = (best.tx * 13 + best.tz * 7);
 
     if (best.ch === '@') {
-        emoji = '🧙'; title = 'プレイヤー (Player)';
-        row1 = `位置: (${best.tx}, ${best.tz})`;
-        row2 = '探索者よ、気をつけて！';
-    } else if (best.ch === 'd') {
+        emoji = '🧙'; title = 'プレイヤー';
+        // ステータス行から HP/AC などを抽出
+        const st = statusEl.textContent || '';
+        const hp  = st.match(/HP:(\d+)\((\d+)\)/);
+        const ac  = st.match(/AC:(-?\d+)/);
+        const xp  = st.match(/Xp:(\d+)/);
+        const dlv = st.match(/Dlvl:(\d+)/);
+        const gld = st.match(/\$:(\d+)/);
+        if (hp) {
+            row1 = `❤️ HP: ${hp[1]}/${hp[2]}  🛡 AC: ${ac?.[1] ?? '?'}  ✨ Xp: ${xp?.[1] ?? '?'}`;
+            row2 = `🏰 階: ${dlv?.[1] ?? '?'}  💰 金: ${gld?.[1] ?? '?'}`;
+        } else {
+            row1 = `位置: (${best.tx}, ${best.tz})`;
+            row2 = '探索者よ、気をつけて！';
+        }
+    } else if (best.ch === 'd' || best.ch === 'f') {
         emoji = '🐕'; title = '犬 (Dog)';
         const szIdx = hash % 3;
         const colIdx = (best.tx * 7 + best.tz * 11) % 5;
         row1 = `サイズ: ${DOG_SIZES[szIdx]}`;
         row2 = `毛色: ${DOG_COLORS[colIdx]}`;
+    } else if (best.ch === 'c') {
+        emoji = '🐱'; title = 'ネコ (Cat)';
+        row1 = isAdjacent ? '隣にいます' : '近くにいます';
     } else if (best.ch === '<') {
         emoji = '🔼'; title = '上り階段';
-        row1 = '< を押すと昇れます';
+        row1 = isSameTile ? '重なっています — 昇れます' : '上り階段';
     } else if (best.ch === '>') {
         emoji = '🔽'; title = '下り階段';
-        row1 = '> を押すと降りられます';
-    } else if ('$:!?/=%*'.includes(best.ch)) {
-        const itemEmojis = { '$':'💰', ':':'🍖', '!':'⚗️', '?':'📜', '/':'🪄', '=':'💍', '%':'🍎', '*':'💎' };
+        row1 = isSameTile ? '重なっています — 降りられます' : '下り階段';
+    } else if ('$:!?/=%*([)'.includes(best.ch)) {
+        const itemEmojis = { '$':'💰', ':':'🍖', '!':'⚗️', '?':'📜', '/':'🪄', '=':'💍', '%':'🍎', '*':'💎', '(':'🔧', '[':'🛡', ')':'⚔️' };
         emoji = itemEmojis[best.ch] || '✨';
-        title = 'アイテム (Item)';
-        row1 = `, を押して拾う`;
+        title = 'アイテム';
+        row1 = isSameTile ? '重なっています — 拾えます' : '移動して重なると拾えます';
     } else {
         const info = MONSTER_INFO[best.ch];
         emoji = info?.emoji || '👾';
         title = info ? `${info.name} (${info.en})` : `モンスター (${best.ch})`;
-        row1 = '危険! 戦闘中は注意';
+        row1 = isAdjacent ? '隣にいます — 攻撃可能' : '危険! 近づくと戦闘';
     }
 
     epEmoji.textContent = emoji;
@@ -1664,35 +1685,55 @@ function showEntityPopupAtTouch(tx, ty) {
 
     // アクションボタン
     epActions.innerHTML = '';
-    const isMonster = best.ch !== '@' && best.ch !== '<' && best.ch !== '>' &&
-                      !'$:!?/=%*'.includes(best.ch) && best.ch !== 'd' && best.ch !== 'f';
-    const isDog = best.ch === 'd' || best.ch === 'f';
-    const isItem = '$:!?/=%*'.includes(best.ch);
+    const isPlayer  = best.ch === '@';
+    const isMonster = !isPlayer && best.ch !== '<' && best.ch !== '>' &&
+                      !'$:!?/=%*([)'.includes(best.ch) &&
+                      best.ch !== 'd' && best.ch !== 'f' && best.ch !== 'c';
+    const isPet   = best.ch === 'd' || best.ch === 'f' || best.ch === 'c';
+    const isItem  = '$:!?/=%*([)'.includes(best.ch);
     const isStairs = best.ch === '<' || best.ch === '>';
 
     function makeActBtn(label, cls, onClick) {
         const b = document.createElement('button');
         b.className = 'ep-act-btn' + (cls ? ' ' + cls : '');
         b.textContent = label;
-        b.addEventListener('click', (e) => { e.stopPropagation(); onClick(); hideEntityPopup(); });
+        b.setAttribute('tabindex', '-1');
+        b.addEventListener('click',    (e) => { e.stopPropagation(); onClick(); hideEntityPopup(); });
         b.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); onClick(); hideEntityPopup(); });
         epActions.appendChild(b);
     }
 
-    if (isMonster) {
-        const dirKey = dirKeyToward(best.tx, best.tz);
-        if (dirKey) {
-            makeActBtn('⚔️ 攻撃', '', () => sendKey(dirKey));
+    if (isPlayer) {
+        // 同タイルにアイテムがある可能性 → 常に拾うボタン提供
+        makeActBtn('⬆️ 拾う (,)', '', () => sendKey(44));
+        makeActBtn('📦 持ち物 (i)', 'ep-act-look', () => sendKey(105));
+        makeActBtn('🧬 能力 (@)', 'ep-act-look', () => sendKey(64));
+    } else if (isMonster) {
+        if (isAdjacent) {
+            const dirKey = dirKeyToward(best.tx, best.tz);
+            if (dirKey) makeActBtn('⚔️ 攻撃', '', () => sendKey(dirKey));
         }
-        makeActBtn('👁 見る', 'ep-act-look', () => sendKey(58)); // ':' = look
-    } else if (isDog) {
-        makeActBtn('🐾 なでる', 'ep-act-look', () => { /* ペットは攻撃不可 */ });
+        makeActBtn('👁 見る', 'ep-act-look', () => sendKey(58));
+    } else if (isPet) {
+        if (isAdjacent) {
+            // #chat + 方向でペットに話しかける
+            const dirKey = dirKeyToward(best.tx, best.tz);
+            if (dirKey) {
+                makeActBtn('🐾 なでる', 'ep-act-look', () => {
+                    // '#chat\n' + 方向
+                    [35,99,104,97,116,13,dirKey].forEach(k => keyQueue.push(k));
+                });
+            }
+        }
     } else if (isItem) {
-        const dirKey = dirKeyToward(best.tx, best.tz);
-        makeActBtn('⬆️ 拾う', 'ep-act-look', () => sendKey(44)); // ','
+        if (isSameTile) {
+            makeActBtn('⬆️ 拾う (,)', '', () => sendKey(44));
+        }
     } else if (isStairs) {
-        const key = best.ch === '>' ? 62 : 60;
-        makeActBtn(best.ch === '>' ? '🔽 降りる' : '🔼 昇る', '', () => sendKey(key));
+        if (isSameTile) {
+            const key = best.ch === '>' ? 62 : 60;
+            makeActBtn(best.ch === '>' ? '🔽 降りる' : '🔼 昇る', '', () => sendKey(key));
+        }
     }
 
     if (epActions.children.length > 0) {
