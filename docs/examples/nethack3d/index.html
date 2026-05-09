@@ -1344,7 +1344,7 @@ function processKeyEvent(e) {
     const key = nethackKeyCode(e);
     if (key !== null) {
         e.preventDefault();
-        sendKey(key);
+        sendKey(remapDirKey(key)); // HJKL・矢印キーもDパッドと同じリマップを適用
     }
 }
 document.addEventListener('keydown', processKeyEvent);
