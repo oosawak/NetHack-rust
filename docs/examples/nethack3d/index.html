@@ -10,10 +10,7 @@ html, body {
     width: 100%; height: 100%;
     overflow: hidden;
     background: #000;
-    /* iOS Safari: タッチでのスクロール・バウンスを防ぐ */
     overscroll-behavior: none;
-    touch-action: none;
-    position: fixed;
 }
 
 /* 3Dキャンバス: フルスクリーン */
@@ -637,15 +634,15 @@ html, body {
 
 <!-- Dパッド (8方向 + 待機) -->
 <div id="dpad-wrap">
-    <button class="dp-btn diag"    data-raw="121">↖</button>
-    <button class="dp-btn cardinal" data-raw="107">↑</button>
-    <button class="dp-btn diag"    data-raw="117">↗</button>
-    <button class="dp-btn cardinal" data-raw="104">←</button>
-    <button class="dp-btn center"  data-raw="46">·</button>
-    <button class="dp-btn cardinal" data-raw="108">→</button>
-    <button class="dp-btn diag"    data-raw="98">↙</button>
-    <button class="dp-btn cardinal" data-raw="106">↓</button>
-    <button class="dp-btn diag"    data-raw="110">↘</button>
+    <button class="dp-btn diag"    data-raw="121" tabindex="-1">↖</button>
+    <button class="dp-btn cardinal" data-raw="107" tabindex="-1">↑</button>
+    <button class="dp-btn diag"    data-raw="117" tabindex="-1">↗</button>
+    <button class="dp-btn cardinal" data-raw="104" tabindex="-1">←</button>
+    <button class="dp-btn center"  data-raw="46"  tabindex="-1">·</button>
+    <button class="dp-btn cardinal" data-raw="108" tabindex="-1">→</button>
+    <button class="dp-btn diag"    data-raw="98"  tabindex="-1">↙</button>
+    <button class="dp-btn cardinal" data-raw="106" tabindex="-1">↓</button>
+    <button class="dp-btn diag"    data-raw="110" tabindex="-1">↘</button>
 </div>
 
 <!-- カメラスワイプ ゾーン (右) -->
@@ -662,46 +659,46 @@ html, body {
 
 <!-- ミニバー (常時表示) -->
 <div id="mini-bar">
-    <button class="mini-btn esc-btn" data-key="27">ESC</button>
-    <button class="mini-btn spc-btn" data-key="32">⎵<span class="lbl">SPC</span></button>
-    <button class="mini-btn enter-btn" data-key="13">↵<span class="lbl">決定</span></button>
-    <button class="mini-btn cam-btn" id="mini-cam-btn">📷<span class="lbl" id="mini-cam-lbl">TPS</span></button>
-    <button class="mini-btn rot-btn" id="rot-left-btn">↺<span class="lbl">左回転</span></button>
-    <button class="mini-btn rot-btn" id="rot-right-btn">↻<span class="lbl">右回転</span></button>
-    <button class="mini-btn kbd-btn" id="mini-kbd-btn">⌨️<span class="lbl">コマンド</span></button>
+    <button class="mini-btn esc-btn"   data-key="27"  tabindex="-1">ESC</button>
+    <button class="mini-btn spc-btn"   data-key="32"  tabindex="-1">⎵<span class="lbl">SPC</span></button>
+    <button class="mini-btn enter-btn" data-key="13"  tabindex="-1">↵<span class="lbl">決定</span></button>
+    <button class="mini-btn cam-btn"   id="mini-cam-btn"  tabindex="-1">📷<span class="lbl" id="mini-cam-lbl">TPS</span></button>
+    <button class="mini-btn rot-btn"   id="rot-left-btn"  tabindex="-1">↺<span class="lbl">左回転</span></button>
+    <button class="mini-btn rot-btn"   id="rot-right-btn" tabindex="-1">↻<span class="lbl">右回転</span></button>
+    <button class="mini-btn kbd-btn"   id="mini-kbd-btn"  tabindex="-1">⌨️<span class="lbl">コマンド</span></button>
 </div>
 
 <!-- キーボードパネル (⌨️ で開閉) -->
 <div id="kbd-panel">
   <div class="nav-row">
-    <button class="nav-btn dir" data-key="121">↖</button>
-    <button class="nav-btn dir" data-key="107">↑</button>
-    <button class="nav-btn dir" data-key="117">↗</button>
-    <button class="nav-btn dir" data-key="104">←</button>
-    <button class="nav-btn dir" data-key="46" title="待つ">·</button>
-    <button class="nav-btn dir" data-key="108">→</button>
-    <button class="nav-btn dir" data-key="98">↙</button>
-    <button class="nav-btn dir" data-key="106">↓</button>
-    <button class="nav-btn dir" data-key="110">↘</button>
+    <button class="nav-btn dir" data-key="121" tabindex="-1">↖</button>
+    <button class="nav-btn dir" data-key="107" tabindex="-1">↑</button>
+    <button class="nav-btn dir" data-key="117" tabindex="-1">↗</button>
+    <button class="nav-btn dir" data-key="104" tabindex="-1">←</button>
+    <button class="nav-btn dir" data-key="46"  tabindex="-1" title="待つ">·</button>
+    <button class="nav-btn dir" data-key="108" tabindex="-1">→</button>
+    <button class="nav-btn dir" data-key="98"  tabindex="-1">↙</button>
+    <button class="nav-btn dir" data-key="106" tabindex="-1">↓</button>
+    <button class="nav-btn dir" data-key="110" tabindex="-1">↘</button>
   </div>
   <div class="nav-row">
-    <button class="nav-btn act" data-key="44"><span>,</span><small>拾う</small></button>
-    <button class="nav-btn act" data-key="105"><span>i</span><small>持物</small></button>
-    <button class="nav-btn act" data-key="115"><span>s</span><small>探索</small></button>
-    <button class="nav-btn act" data-key="60"><span>&lt;</span><small>上へ</small></button>
-    <button class="nav-btn act" data-key="62"><span>&gt;</span><small>下へ</small></button>
-    <button class="nav-btn act" data-key="101"><span>e</span><small>食べ</small></button>
-    <button class="nav-btn act" data-key="100"><span>d</span><small>落す</small></button>
-    <button class="nav-btn act" data-key="97"><span>a</span><small>使用</small></button>
-    <button class="nav-btn act" data-key="113"><span>q</span><small>飲む</small></button>
+    <button class="nav-btn act" data-key="44"  tabindex="-1"><span>,</span><small>拾う</small></button>
+    <button class="nav-btn act" data-key="105" tabindex="-1"><span>i</span><small>持物</small></button>
+    <button class="nav-btn act" data-key="115" tabindex="-1"><span>s</span><small>探索</small></button>
+    <button class="nav-btn act" data-key="60"  tabindex="-1"><span>&lt;</span><small>上へ</small></button>
+    <button class="nav-btn act" data-key="62"  tabindex="-1"><span>&gt;</span><small>下へ</small></button>
+    <button class="nav-btn act" data-key="101" tabindex="-1"><span>e</span><small>食べ</small></button>
+    <button class="nav-btn act" data-key="100" tabindex="-1"><span>d</span><small>落す</small></button>
+    <button class="nav-btn act" data-key="97"  tabindex="-1"><span>a</span><small>使用</small></button>
+    <button class="nav-btn act" data-key="113" tabindex="-1"><span>q</span><small>飲む</small></button>
   </div>
   <div class="nav-row">
-    <button class="nav-btn yn" data-key="121">Y</button>
-    <button class="nav-btn yn" data-key="110">N</button>
-    <button class="nav-btn" data-key="116"><span style="font-size:12px">t</span><span style="font-size:8px">投擲</span></button>
-    <button class="nav-btn" data-key="90">Z<span style="font-size:8px;color:#8af">呪文</span></button>
-    <button class="nav-btn" data-key="112">p<span style="font-size:8px;color:#8af">祈る</span></button>
-    <button class="nav-btn kbd" id="keyboard-btn-bar">⌨️</button>
+    <button class="nav-btn yn"  data-key="121" tabindex="-1">Y</button>
+    <button class="nav-btn yn"  data-key="110" tabindex="-1">N</button>
+    <button class="nav-btn"     data-key="116" tabindex="-1"><span style="font-size:12px">t</span><span style="font-size:8px">投擲</span></button>
+    <button class="nav-btn"     data-key="90"  tabindex="-1">Z<span style="font-size:8px;color:#8af">呪文</span></button>
+    <button class="nav-btn"     data-key="112" tabindex="-1">p<span style="font-size:8px;color:#8af">祈る</span></button>
+    <button class="nav-btn kbd" id="keyboard-btn-bar"        tabindex="-1">⌨️</button>
   </div>
 </div>
 
