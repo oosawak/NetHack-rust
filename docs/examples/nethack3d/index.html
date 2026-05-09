@@ -1758,12 +1758,12 @@ function showEntityPopupAtTouch(tx, ty) {
     entityPopup.style.display = 'block';
     const pw = entityPopup.offsetWidth  || 180;
     const ph = entityPopup.offsetHeight || 100;
-    let px = tx - pw * 0.5;
-    let py = ty - ph - 16;
-    px = Math.max(6, Math.min(sw - pw - 6, px));
-    py = Math.max(44, py);
-    entityPopup.style.left = px + 'px';
-    entityPopup.style.top  = py + 'px';
+    let popX = tx - pw * 0.5;
+    let popY = ty - ph - 16;
+    popX = Math.max(6, Math.min(sw - pw - 6, popX));
+    popY = Math.max(44, popY);
+    entityPopup.style.left = popX + 'px';
+    entityPopup.style.top  = popY + 'px';
 
     if (popupTimer) clearTimeout(popupTimer);
     // アクションボタンがある場合は自動で消えない
