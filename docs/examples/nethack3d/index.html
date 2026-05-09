@@ -1251,8 +1251,9 @@ function rotatePlayerFacing(cw) {
     playerFacing = cw ? FACING_CW[playerFacing] : FACING_CCW[playerFacing];
     if (nethack3d) nethack3d.set_player_nethack3d(player3dX, player3dZ, playerFacing);
 }
-document.getElementById('rot-left-btn')?.addEventListener('click',  () => rotatePlayerFacing(false));
-document.getElementById('rot-right-btn')?.addEventListener('click', () => rotatePlayerFacing(true));
+function rotate90(cw) { rotatePlayerFacing(cw); rotatePlayerFacing(cw); } // 45°×2=90°
+document.getElementById('rot-left-btn')?.addEventListener('click',  () => rotate90(false));
+document.getElementById('rot-right-btn')?.addEventListener('click', () => rotate90(true));
 
 // L/R ショルダーボタン (カメラ回転) - ポインターイベント対応
 (function() {
@@ -1334,6 +1335,12 @@ function nethackKeyCode(e) {
 }
 
 function processKeyEvent(e) {
+    // Shift+左右矢印 → 90°カメラ回転 (PC向け)
+    if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        rotate90(e.key === 'ArrowRight');
+        return;
+    }
     const key = nethackKeyCode(e);
     if (key !== null) {
         e.preventDefault();
