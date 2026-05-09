@@ -77,6 +77,13 @@ pub const TILE_RUST_MON:   u8 = 40;
 pub const TILE_QUASIT:     u8 = 41;
 pub const TILE_GRID_BUG:   u8 = 42;
 pub const TILE_GOLEM:      u8 = 43;
+pub const TILE_CHEST:      u8 = 44;
+pub const TILE_FUNGUS:     u8 = 45;
+pub const TILE_HUMANOID:   u8 = 46;
+pub const TILE_ELEMENTAL:  u8 = 47;
+pub const TILE_SEA_MON:    u8 = 48;
+pub const TILE_JELLY:      u8 = 49;
+pub const TILE_WORM:       u8 = 50;
 
 /// 1×1×1 ボックスの1面 (quad) を4頂点+6インデックスで追加
 pub fn push_quad(
@@ -93,7 +100,7 @@ pub fn push_quad(
 
 /// タイルが「通行可能」かどうか (床・廊下・プレイヤーなど)
 pub fn is_passable(t: u8) -> bool {
-    matches!(t & 0x3F, TILE_FLOOR|TILE_CORRIDOR|TILE_PLAYER|TILE_STAIRS_U|TILE_STAIRS_D|TILE_MONSTER|TILE_ITEM|TILE_DOG|TILE_CAT|TILE_RAT|TILE_BAT|TILE_SLIME|TILE_ORC|TILE_ZOMBIE|TILE_SNAKE|TILE_EYE|TILE_UNICORN|TILE_TROLL|TILE_DRAGON|TILE_LEPRECHAUN|TILE_KOBOLD|TILE_NYMPH|TILE_VAMPIRE|TILE_LICH|TILE_YETI|TILE_ANGEL|TILE_CENTAUR|TILE_GIANT|TILE_WRAITH|TILE_DEMON|TILE_MUMMY|TILE_VAMP_BAT|TILE_GNOME|TILE_STALKER|TILE_XORN|TILE_MIMIC|TILE_HOBGOBLIN|TILE_RUST_MON|TILE_QUASIT|TILE_GRID_BUG|TILE_GOLEM)
+    matches!(t & 0x3F, TILE_FLOOR|TILE_CORRIDOR|TILE_PLAYER|TILE_STAIRS_U|TILE_STAIRS_D|TILE_MONSTER|TILE_ITEM|TILE_DOG|TILE_CAT|TILE_RAT|TILE_BAT|TILE_SLIME|TILE_ORC|TILE_ZOMBIE|TILE_SNAKE|TILE_EYE|TILE_UNICORN|TILE_TROLL|TILE_DRAGON|TILE_LEPRECHAUN|TILE_KOBOLD|TILE_NYMPH|TILE_VAMPIRE|TILE_LICH|TILE_YETI|TILE_ANGEL|TILE_CENTAUR|TILE_GIANT|TILE_WRAITH|TILE_DEMON|TILE_MUMMY|TILE_VAMP_BAT|TILE_GNOME|TILE_STALKER|TILE_XORN|TILE_MIMIC|TILE_HOBGOBLIN|TILE_RUST_MON|TILE_QUASIT|TILE_GRID_BUG|TILE_GOLEM|TILE_CHEST|TILE_FUNGUS|TILE_HUMANOID|TILE_ELEMENTAL|TILE_SEA_MON|TILE_JELLY|TILE_WORM)
 }
 pub fn is_solid(t: u8) -> bool {
     let b = t & 0x3F;
@@ -196,31 +203,118 @@ pub fn build_dungeon(
                 }
             }
 
-            // アイテム: 浮かぶ菱形ビルボード (2枚クロス) — 見る角度によらず光る
+            // アイテム: 金貨の山 + 浮かぶ宝石 — 床に置かれた感
             if base_t == TILE_ITEM {
                 let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
-                // タイル位置でボブのタイミングをずらす
                 let phase = cx * 0.8 + cz * 1.1;
-                let fy = 0.38 + (time * 1.6 + phase).sin() * 0.07;
-                let s = 0.20;
-                // XZ平面の菱形 (水平回転ディスク感)
-                push_quad(verts, idxs,
-                    [cx, fy, cz-s],[cx+s, fy, cz],[cx, fy, cz+s],[cx-s, fy, cz],
-                    item_col);
-                // 縦菱形 X方向
-                push_quad(verts, idxs,
-                    [cx,   fy+s*0.8, cz],
-                    [cx+s, fy,       cz],
-                    [cx,   fy-s*0.8, cz],
-                    [cx-s, fy,       cz],
-                    item_col);
-                // 縦菱形 Z方向
-                push_quad(verts, idxs,
-                    [cx, fy+s*0.8, cz  ],
-                    [cx, fy,       cz+s],
-                    [cx, fy-s*0.8, cz  ],
-                    [cx, fy,       cz-s],
-                    item_col);
+                let hash = (tx*11+ty*7) as f32;
+                let pulse = (time * 2.0 + phase).sin() * 0.5 + 0.5_f32;
+                let bob   = (time * 1.8 + phase).sin() * 0.014;
+                // アイテムの種類をハッシュで決める
+                let kind = (tx*3 + ty*5) % 5;
+                match kind {
+                    // 金貨の山
+                    0 => {
+                        let gold = [0.92_f32, 0.78, 0.12, 2.5];
+                        let gold_sh = [0.70_f32, 0.56, 0.08, 1.0];
+                        // 山の底
+                        push_box(verts,idxs, cx-0.14,0.0,cz-0.12, cx+0.14,0.040,cz+0.12, gold_sh);
+                        // 中段
+                        push_box(verts,idxs, cx-0.09,0.036,cz-0.08, cx+0.09,0.076,cz+0.08, gold);
+                        // てっぺん (輝く!)
+                        push_box(verts,idxs, cx-0.04,0.072,cz-0.04, cx+0.04,0.10,cz+0.04, [1.0,0.90,0.30,pulse*2.0+2.0]);
+                        // 周囲にこぼれたコイン
+                        for i in 0..4i32 {
+                            let a=(i as f32)*1.571+hash;
+                            let rx=a.cos()*0.10; let rz=a.sin()*0.09;
+                            push_box(verts,idxs, cx+rx-0.022,0.0,cz+rz-0.022, cx+rx+0.022,0.010,cz+rz+0.022, gold);
+                        }
+                        if lights.len()<4 { lights.push(Light{pos:[cx,0.15,cz,hash],col:[1.0,0.85,0.10,pulse*2.0+1.0]}); }
+                    }
+                    // 魔法のポーション (宙に浮く瓶)
+                    1 => {
+                        let (pot_col, glow) = match (tx+ty)%4 {
+                            0 => ([0.20_f32,0.60,0.96,1.0],[0.30_f32,0.80,1.0,pulse*2.5+2.0]),
+                            1 => ([0.80_f32,0.20,0.60,1.0],[1.0_f32,0.40,0.80,pulse*2.5+2.0]),
+                            2 => ([0.20_f32,0.80,0.30,1.0],[0.30_f32,1.0,0.50,pulse*2.5+2.0]),
+                            _ => ([0.90_f32,0.70,0.10,1.0],[1.0_f32,0.90,0.20,pulse*2.5+2.0]),
+                        };
+                        let py = 0.08 + bob;
+                        // 瓶の底
+                        push_box(verts,idxs, cx-0.050,py,cz-0.050, cx+0.050,py+0.12,cz+0.050, pot_col);
+                        // 瓶の肩 (細くなる)
+                        push_box(verts,idxs, cx-0.030,py+0.11,cz-0.030, cx+0.030,py+0.17,cz+0.030, pot_col);
+                        // 瓶の口 (細い首)
+                        push_box(verts,idxs, cx-0.016,py+0.16,cz-0.016, cx+0.016,py+0.22,cz+0.016, pot_col);
+                        // コルク
+                        push_box(verts,idxs, cx-0.018,py+0.21,cz-0.018, cx+0.018,py+0.24,cz+0.018, [0.72,0.52,0.30,1.0]);
+                        // 内部の輝き
+                        push_box(verts,idxs, cx-0.040,py+0.010,cz+0.040, cx+0.040,py+0.10,cz+0.048, glow);
+                        if lights.len()<4 { lights.push(Light{pos:[cx,py+0.15,cz,hash],col:[glow[0],glow[1],glow[2],pulse*2.0+1.0]}); }
+                    }
+                    // 巻物 (丸めた羊皮紙)
+                    2 => {
+                        let scroll_col = [0.94_f32,0.90,0.76,1.0];
+                        let ink_col    = [0.18_f32,0.14,0.10,1.0];
+                        let ribbon_col = [0.80_f32,0.20,0.20,1.0];
+                        let sy = 0.04;
+                        // 巻物本体
+                        push_box(verts,idxs, cx-0.06,sy,cz-0.10, cx+0.06,sy+0.12,cz+0.10, scroll_col);
+                        // 上下の丸まり
+                        push_box(verts,idxs, cx-0.07,sy-0.010,cz-0.10, cx+0.07,sy+0.022,cz+0.10, scroll_col);
+                        push_box(verts,idxs, cx-0.07,sy+0.10,cz-0.10, cx+0.07,sy+0.13,cz+0.10, scroll_col);
+                        // インクの文字 (横線3本)
+                        for i in 0..3i32 {
+                            let iw=sy+0.030+(i as f32)*0.026;
+                            push_box(verts,idxs, cx-0.042,iw,cz-0.080, cx+0.042,iw+0.008,cz+0.080, ink_col);
+                        }
+                        // リボン
+                        push_box(verts,idxs, cx-0.007,sy-0.012,cz-0.10, cx+0.007,sy+0.132,cz+0.10, ribbon_col);
+                        // 魔法の輝き
+                        push_box(verts,idxs, cx-0.04,sy+0.04,cz+0.095, cx+0.04,sy+0.08,cz+0.108, [0.80,0.72,0.18,pulse*1.5+1.0]);
+                    }
+                    // 宝石 (浮かぶ輝く石)
+                    3 => {
+                        let (gem_col, gem_glow) = match (tx*2+ty)%4 {
+                            0 => ([0.90_f32,0.15,0.15,1.0],[1.0_f32,0.30,0.30,pulse*3.0+2.0]), // ルビー
+                            1 => ([0.20_f32,0.40,0.90,1.0],[0.30_f32,0.60,1.0,pulse*3.0+2.0]), // サファイア
+                            2 => ([0.15_f32,0.80,0.35,1.0],[0.25_f32,1.0,0.50,pulse*3.0+2.0]), // エメラルド
+                            _ => ([0.80_f32,0.65,0.10,1.0],[1.0_f32,0.85,0.20,pulse*3.0+2.0]), // トパーズ
+                        };
+                        let gy = 0.14 + bob * 1.5;
+                        let r = 0.090;
+                        // 宝石 (多面体ぽく複数のbox)
+                        push_box(verts,idxs, cx-r,gy,cz-r, cx+r,gy+r*1.2,cz+r, gem_col);
+                        push_box(verts,idxs, cx-r*0.7,gy-0.04,cz-r*0.7, cx+r*0.7,gy,cz+r*0.7, gem_col);
+                        push_box(verts,idxs, cx-r*0.7,gy+r*1.1,cz-r*0.7, cx+r*0.7,gy+r*1.5,cz+r*0.7, gem_col);
+                        // 内部の輝き
+                        push_box(verts,idxs, cx-r*0.4,gy+r*0.2,cz+r*0.8, cx+r*0.4,gy+r*0.9,cz+r*1.0, gem_glow);
+                        // 回転する光の筋
+                        let angle = time * 2.5 + hash;
+                        let rx = angle.cos()*r*0.5; let rz = angle.sin()*r*0.5;
+                        push_box(verts,idxs, cx+rx-0.012,gy+r*0.3,cz+rz-0.012, cx+rx+0.012,gy+r*0.9,cz+rz+0.012, gem_glow);
+                        if lights.len()<4 { lights.push(Light{pos:[cx,gy+r,cz,hash],col:[gem_glow[0],gem_glow[1],gem_glow[2],pulse*3.0+1.5]}); }
+                    }
+                    // 武器 (光る剣)
+                    _ => {
+                        let blade_col = [0.86_f32, 0.84, 0.90, 2.0];
+                        let guard_col = [0.80_f32, 0.70, 0.18, 1.0];
+                        let grip_col  = [0.36_f32, 0.18, 0.08, 1.0];
+                        let wy = 0.06 + bob;
+                        let tilt = (time*0.8+hash).sin()*0.04; // ゆっくり傾く
+                        // 刃
+                        push_box(verts,idxs, cx-0.016,wy+tilt,cz-0.18+tilt, cx+0.016,wy+0.44+tilt,cz+0.18+tilt, blade_col);
+                        // 鍔
+                        push_box(verts,idxs, cx-0.052,wy+0.14,cz-0.028, cx+0.052,wy+0.18,cz+0.028, guard_col);
+                        // 柄
+                        push_box(verts,idxs, cx-0.014,wy,cz-0.014, cx+0.014,wy+0.15,cz+0.014, grip_col);
+                        // 柄頭
+                        push_box(verts,idxs, cx-0.024,wy-0.022,cz-0.024, cx+0.024,wy+0.010,cz+0.024, guard_col);
+                        // 刃の輝き
+                        push_box(verts,idxs, cx+0.010,wy+0.10,cz-0.01, cx+0.016,wy+0.38,cz+0.01, [0.96,0.96,1.0,pulse*2.0+1.5]);
+                        if lights.len()<4 { lights.push(Light{pos:[cx,wy+0.25,cz,hash],col:[0.70,0.80,1.0,pulse*2.0+1.0]}); }
+                    }
+                }
             }
 
             // モンスター: クロスビルボード (Doomスタイル — どの角度でも見える)
@@ -2398,6 +2492,414 @@ pub fn build_dungeon(
                 // 地響き (足元の粉塵)
                 push_box(verts,idxs, cx-0.40*sc,0.0,cz-0.40*sc, cx+0.40*sc,0.012*sc,cz+0.40*sc,[body_sh[0],body_sh[1],body_sh[2],stomp.abs()*0.4+0.05]);
                 if lights.len()<4 { lights.push(Light{pos:[cx,hy1,cz,hash],col:[rune_col[0],rune_col[1],rune_col[2],pulse*3.0+1.5]}); }
+            }
+
+            // ━━ 宝箱 (TILE_CHEST): 木の宝箱・金の装飾・財宝がこぼれる ━━
+            if base_t == TILE_CHEST {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx*7+ty*13) as f32;
+                let pulse = (time*1.8+hash).sin()*0.5+0.5_f32;
+                // 宝箱のバリエーション (木の色4種)
+                let (wood_col, wood_sh, metal_col) = match (tx+ty)%4 {
+                    0 => ([0.68_f32,0.46,0.22,1.0],[0.50_f32,0.32,0.12,1.0],[0.80_f32,0.72,0.30,1.0]), // 明るい木+金
+                    1 => ([0.52_f32,0.34,0.16,1.0],[0.36_f32,0.22,0.08,1.0],[0.70_f32,0.68,0.64,1.0]), // 暗い木+銀
+                    2 => ([0.62_f32,0.42,0.18,1.0],[0.44_f32,0.28,0.10,1.0],[0.82_f32,0.40,0.14,1.0]), // 茶木+銅
+                    _ => ([0.46_f32,0.28,0.10,1.0],[0.30_f32,0.18,0.06,1.0],[0.76_f32,0.66,0.20,1.0]), // 黒木+金
+                };
+                let gem_col  = [0.90_f32, 0.18, 0.18, 3.5]; // 鍵穴の宝石
+                let gold_col = [0.96_f32, 0.84, 0.14, 2.5]; // あふれる金貨
+                let lock_col = [0.50_f32, 0.46, 0.42, 1.0]; // 鍵
+                // ── 箱の本体 (下半分) ──
+                push_box(verts,idxs, cx-0.24,0.0,cz-0.18, cx+0.24,0.22,cz+0.18, wood_col);
+                // 側板の影
+                push_box(verts,idxs, cx-0.26,0.010,cz-0.20, cx-0.22,0.210,cz+0.20, wood_sh);
+                push_box(verts,idxs, cx+0.22,0.010,cz-0.20, cx+0.26,0.210,cz+0.20, wood_sh);
+                push_box(verts,idxs, cx-0.22,0.010,cz-0.20, cx+0.22,0.210,cz-0.16, wood_sh);
+                // 金属のたが (横3本)
+                push_box(verts,idxs, cx-0.26,0.040,cz-0.20, cx+0.26,0.065,cz+0.20, metal_col);
+                push_box(verts,idxs, cx-0.26,0.095,cz-0.20, cx+0.26,0.118,cz+0.20, metal_col);
+                push_box(verts,idxs, cx-0.26,0.155,cz-0.20, cx+0.26,0.178,cz+0.20, metal_col);
+                // 四隅の金属金具
+                for &(sx2,sz2) in &[(-1.0_f32,-1.0_f32),(-1.0,1.0),(1.0,-1.0),(1.0,1.0)] {
+                    let ex=cx+sx2*0.22; let ez=cz+sz2*0.17;
+                    push_box(verts,idxs, ex-0.04,0.0,ez-0.04, ex+0.04,0.22,ez+0.04, metal_col);
+                }
+                // ── 蓋 (わずかに開いている! 財宝が見える) ──
+                let lid_open = 0.06 + (time*1.2+hash).sin()*0.02; // わずかにゆらぐ
+                let lid_y = 0.22;
+                push_box(verts,idxs, cx-0.25,lid_y,cz-0.19, cx+0.25,lid_y+0.08+lid_open,cz+0.19, wood_col);
+                push_box(verts,idxs, cx-0.27,lid_y+0.010,cz-0.21, cx-0.23,lid_y+0.075+lid_open,cz+0.21, wood_sh);
+                push_box(verts,idxs, cx+0.23,lid_y+0.010,cz-0.21, cx+0.27,lid_y+0.075+lid_open,cz+0.21, wood_sh);
+                // 蓋のたが
+                push_box(verts,idxs, cx-0.27,lid_y+0.04,cz-0.21, cx+0.27,lid_y+0.06,cz+0.21, metal_col);
+                // 蝶番 (背面)
+                push_box(verts,idxs, cx-0.08,lid_y-0.01,cz-0.195, cx-0.02,lid_y+0.03,cz-0.185, metal_col);
+                push_box(verts,idxs, cx+0.02,lid_y-0.01,cz-0.195, cx+0.08,lid_y+0.03,cz-0.185, metal_col);
+                // 錠前 (前面中央)
+                push_box(verts,idxs, cx-0.04,lid_y-0.02,cz+0.182, cx+0.04,lid_y+0.06,cz+0.202, lock_col);
+                // 鍵穴の宝石 (光る!)
+                push_box(verts,idxs, cx-0.016,lid_y+0.010,cz+0.193, cx+0.016,lid_y+0.042,cz+0.204, [gem_col[0],gem_col[1],gem_col[2],pulse*2.0+1.5]);
+                // ── 蓋の隙間からあふれる財宝の光 ──
+                push_box(verts,idxs, cx-0.18,lid_y,cz-0.14, cx+0.18,lid_y+0.010+lid_open,cz+0.14, [gold_col[0],gold_col[1],gold_col[2],pulse*1.5+0.8]);
+                // こぼれた金貨 (周囲に散らばる)
+                for i in 0..5i32 {
+                    let angle=(i as f32)*1.257+hash;
+                    let rx=angle.cos()*0.22; let rz=angle.sin()*0.16;
+                    push_box(verts,idxs, cx+rx-0.020,0.0,cz+rz-0.020, cx+rx+0.020,0.012,cz+rz+0.020, [0.92,0.78,0.14,1.0]);
+                }
+                // 金の輝き (蓋から漏れる)
+                if lights.len()<4 { lights.push(Light{pos:[cx,lid_y+0.10,cz,hash],col:[1.0,0.86,0.14,pulse*3.0+1.5]}); }
+            }
+
+            // ━━ キノコ/菌類 (TILE_FUNGUS): 胞子を飛ばす毒キノコ ━━
+            if base_t == TILE_FUNGUS {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx*11+ty*19) as f32;
+                let sc = tier_base * match (tx*3+ty*5)%4 { 0=>0.70_f32, 1=>0.85, 2=>1.00, _=>1.15 };
+                // 4種のキノコカラー
+                let (cap_col, cap_sh, spot_col, stem_col) = match (tx+ty*2)%4 {
+                    0 => ([0.80_f32,0.16,0.12,1.0],[0.56_f32,0.10,0.08,1.0],[0.96_f32,0.92,0.86,1.0],[0.86_f32,0.80,0.68,1.0]), // 赤キノコ
+                    1 => ([0.58_f32,0.22,0.72,1.0],[0.38_f32,0.12,0.50,1.0],[0.92_f32,0.86,0.96,1.0],[0.82_f32,0.76,0.86,1.0]), // 紫キノコ
+                    2 => ([0.20_f32,0.60,0.22,1.0],[0.12_f32,0.40,0.14,1.0],[0.96_f32,0.94,0.80,1.0],[0.76_f32,0.82,0.70,1.0]), // 緑キノコ
+                    _ => ([0.86_f32,0.72,0.10,1.0],[0.62_f32,0.50,0.06,1.0],[0.96_f32,0.90,0.70,1.0],[0.90_f32,0.84,0.62,1.0]), // 黄キノコ
+                };
+                let spore_col = [cap_col[0],cap_col[1],cap_col[2],2.5_f32];
+                let pulse = (time*1.6+hash).sin()*0.5+0.5_f32;
+                let sway  = (time*1.1+hash).sin()*0.012*sc;
+                // 茎 (少し曲がる)
+                push_box(verts,idxs, cx-0.060*sc+sway,0.0,cz-0.060*sc, cx+0.060*sc+sway,0.20*sc,cz+0.060*sc, stem_col);
+                // 茎の斑点
+                for i in 0..2i32 {
+                    let sw=0.04*sc+(i as f32)*0.08*sc;
+                    push_box(verts,idxs, cx+sway-0.070*sc,sw,cz+0.058*sc, cx+sway+0.010*sc,sw+0.018*sc,cz+0.074*sc, spot_col);
+                }
+                // 傘 (膨らんだ丸み — 3段で表現)
+                let hy0=0.18*sc+sway; 
+                push_box(verts,idxs, cx-0.22*sc+sway,hy0,cz-0.22*sc, cx+0.22*sc+sway,hy0+0.06*sc,cz+0.22*sc, cap_col);
+                push_box(verts,idxs, cx-0.18*sc+sway,hy0+0.05*sc,cz-0.18*sc, cx+0.18*sc+sway,hy0+0.14*sc,cz+0.18*sc, cap_col);
+                push_box(verts,idxs, cx-0.11*sc+sway,hy0+0.12*sc,cz-0.11*sc, cx+0.11*sc+sway,hy0+0.22*sc,cz+0.11*sc, cap_col);
+                // 傘の裏 (ひだ)
+                push_box(verts,idxs, cx-0.20*sc+sway,hy0-0.02*sc,cz-0.20*sc, cx+0.20*sc+sway,hy0,cz+0.20*sc, cap_sh);
+                // 傘の水玉模様
+                for i in 0..4i32 {
+                    let a=(i as f32)*1.571+hash*0.1;
+                    let rx=a.cos()*0.10*sc; let rz=a.sin()*0.09*sc;
+                    push_box(verts,idxs, cx+rx+sway-0.026*sc,hy0+0.06*sc,cz+rz-0.026*sc, cx+rx+sway+0.026*sc,hy0+0.08*sc,cz+rz+0.026*sc, spot_col);
+                }
+                // 胞子 (周囲にふわふわ飛ぶ!)
+                for i in 0..5i32 {
+                    let sp=(time*1.8+hash+(i as f32)*1.257).sin()*0.5+0.5_f32;
+                    let a=(i as f32)*1.257+time*0.5+hash;
+                    let r=(0.16+sp*0.10)*sc;
+                    let sy=hy0+0.10*sc+sp*0.18*sc;
+                    let rx=a.cos()*r; let rz=a.sin()*r;
+                    push_box(verts,idxs, cx+rx+sway-0.014*sc,sy,cz+rz-0.014*sc, cx+rx+sway+0.014*sc,sy+0.022*sc,cz+rz+0.022*sc,[spore_col[0],spore_col[1],spore_col[2],sp*1.2+0.3]);
+                }
+                // 毒の霧 (足元)
+                push_box(verts,idxs, cx-0.28*sc,0.0,cz-0.28*sc, cx+0.28*sc,0.014*sc,cz+0.28*sc,[cap_col[0],cap_col[1],cap_col[2],pulse*0.4+0.08]);
+                if lights.len()<4 { lights.push(Light{pos:[cx,hy0+0.20*sc,cz,hash],col:[cap_col[0],cap_col[1],cap_col[2],pulse*2.0+0.8]}); }
+            }
+
+            // ━━ ヒューマノイドNPC (TILE_HUMANOID): 冒険者・衛兵・商人 ━━
+            if base_t == TILE_HUMANOID {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx*13+ty*11) as f32;
+                let sc = tier_base * 1.0_f32;
+                // 役割バリエーション (4種)
+                let kind = (tx+ty*3) % 4;
+                let (body_col, armor_col, weapon_col, skin_col) = match kind {
+                    0 => ([0.42_f32,0.36,0.62,1.0],[0.52_f32,0.48,0.70,1.0],[0.76_f32,0.72,0.32,1.0],[0.88_f32,0.74,0.60,1.0]), // 魔法使い(紫)
+                    1 => ([0.24_f32,0.44,0.24,1.0],[0.36_f32,0.56,0.36,1.0],[0.68_f32,0.62,0.56,1.0],[0.86_f32,0.72,0.58,1.0]), // レンジャー(緑)
+                    2 => ([0.50_f32,0.38,0.26,1.0],[0.62_f32,0.50,0.38,1.0],[0.84_f32,0.80,0.36,1.0],[0.90_f32,0.76,0.62,1.0]), // 僧侶(茶)
+                    _ => ([0.26_f32,0.28,0.48,1.0],[0.46_f32,0.48,0.68,1.0],[0.80_f32,0.76,0.54,1.0],[0.88_f32,0.74,0.60,1.0]), // 盗賊(紺)
+                };
+                let hair_col = match (tx*2+ty)%4 {
+                    0 => [0.18_f32,0.12,0.08,1.0], // 黒髪
+                    1 => [0.70_f32,0.55,0.20,1.0], // 金髪
+                    2 => [0.55_f32,0.30,0.10,1.0], // 茶髪
+                    _ => [0.80_f32,0.78,0.74,1.0], // 白髪
+                };
+                let eye_col = [0.20_f32,0.36,0.60,1.0];
+                let walk = (time*2.8+hash).sin();
+                let bob  = walk.abs()*0.014*sc;
+                let arm_sw = walk*0.028*sc;
+                let leg_sw = walk*0.022*sc;
+                // ブーツ
+                push_box(verts,idxs, cx-0.10*sc,0.0,cz-0.08*sc-leg_sw, cx-0.03*sc,0.026*sc,cz+0.08*sc-leg_sw, armor_col);
+                push_box(verts,idxs, cx+0.03*sc,0.0,cz-0.08*sc+leg_sw, cx+0.10*sc,0.026*sc,cz+0.08*sc+leg_sw, armor_col);
+                // 脚
+                push_box(verts,idxs, cx-0.09*sc,0.024*sc,cz-0.07*sc-leg_sw, cx-0.03*sc,0.28*sc,cz+0.07*sc-leg_sw, body_col);
+                push_box(verts,idxs, cx+0.03*sc,0.024*sc,cz-0.07*sc+leg_sw, cx+0.09*sc,0.28*sc,cz+0.07*sc+leg_sw, body_col);
+                // 胴体
+                let by0=0.27*sc+bob; let by1=by0+0.32*sc;
+                push_box(verts,idxs, cx-0.14*sc,by0,cz-0.11*sc, cx+0.14*sc,by1,cz+0.11*sc, armor_col);
+                // 腕
+                push_box(verts,idxs, cx-0.22*sc,by0+0.04*sc+arm_sw,cz-0.07*sc, cx-0.12*sc,by1-0.04*sc+arm_sw,cz+0.07*sc, body_col);
+                push_box(verts,idxs, cx+0.12*sc,by0+0.04*sc-arm_sw,cz-0.07*sc, cx+0.22*sc,by1-0.04*sc-arm_sw,cz+0.07*sc, armor_col);
+                // 首
+                let hy0=by1+bob; let hy1=hy0+0.18*sc;
+                push_box(verts,idxs, cx-0.05*sc,by1-0.01*sc,cz-0.05*sc, cx+0.05*sc,hy0,cz+0.05*sc, skin_col);
+                // 頭
+                push_box(verts,idxs, cx-0.11*sc,hy0,cz-0.10*sc, cx+0.11*sc,hy1,cz+0.10*sc, skin_col);
+                // 目
+                let es=0.018*sc; let eyz=hy0+(hy1-hy0)*0.55; let ezf=cz+0.088*sc;
+                push_box(verts,idxs, cx-0.040*sc-es,eyz-es*0.4,ezf, cx-0.040*sc+es,eyz+es*0.8,ezf+es*0.4, eye_col);
+                push_box(verts,idxs, cx+0.040*sc-es,eyz-es*0.4,ezf, cx+0.040*sc+es,eyz+es*0.8,ezf+es*0.4, eye_col);
+                // 髪型 (kindにより)
+                match kind {
+                    0 => { // 魔法使い: 高い帽子
+                        push_box(verts,idxs, cx-0.12*sc,hy1-0.01*sc,cz-0.12*sc, cx+0.12*sc,hy1+0.04*sc,cz+0.12*sc, body_col);
+                        push_box(verts,idxs, cx-0.06*sc,hy1+0.03*sc,cz-0.06*sc, cx+0.06*sc,hy1+0.22*sc,cz+0.06*sc, body_col);
+                        // 杖
+                        let stx=cx-0.24*sc; let sty0=by0+0.08*sc+arm_sw; let sty1=sty0+0.48*sc;
+                        push_box(verts,idxs, stx-0.012*sc,sty0,cz-0.012*sc, stx+0.012*sc,sty1,cz+0.012*sc, armor_col);
+                        let pulse=(time*3.0+hash).sin()*0.5+0.5_f32;
+                        push_box(verts,idxs, stx-0.032*sc,sty1-0.02*sc,cz-0.032*sc, stx+0.032*sc,sty1+0.032*sc,cz+0.032*sc,[weapon_col[0],weapon_col[1],weapon_col[2],pulse*3.0+1.5]);
+                    }
+                    1 => { // レンジャー: フード + 弓
+                        push_box(verts,idxs, cx-0.13*sc,hy1-0.02*sc,cz-0.12*sc, cx+0.13*sc,hy1+0.08*sc,cz+0.12*sc, body_col);
+                        push_box(verts,idxs, cx-0.08*sc,hy1+0.06*sc,cz-0.08*sc, cx+0.08*sc,hy1+0.14*sc,cz+0.08*sc, body_col);
+                        // 弓
+                        let bx=cx+0.24*sc; let bya=by0+0.06*sc-arm_sw;
+                        push_box(verts,idxs, bx-0.012*sc,bya,cz-0.22*sc, bx+0.012*sc,bya+0.44*sc,cz-0.18*sc, armor_col);
+                        push_box(verts,idxs, bx-0.008*sc,bya+0.04*sc,cz-0.19*sc, bx+0.008*sc,bya+0.40*sc,cz-0.20*sc, weapon_col);
+                    }
+                    2 => { // 僧侶: フード + 聖なるシンボル
+                        push_box(verts,idxs, cx-0.13*sc,hy0-0.02*sc,cz-0.12*sc, cx+0.13*sc,hy1+0.06*sc,cz+0.12*sc, armor_col);
+                        let pulse=(time*2.0+hash).sin()*0.5+0.5_f32;
+                        push_box(verts,idxs, cx-0.016*sc,by0+0.04*sc,cz+0.108*sc, cx+0.016*sc,by0+0.22*sc,cz+0.116*sc,[1.0,0.90,0.40,pulse*2.0+1.5]);
+                        push_box(verts,idxs, cx-0.056*sc,by0+0.12*sc,cz+0.108*sc, cx+0.056*sc,by0+0.14*sc,cz+0.116*sc,[1.0,0.90,0.40,pulse*2.0+1.5]);
+                    }
+                    _ => { // 盗賊: フード + ダガー2本
+                        push_box(verts,idxs, cx-0.12*sc,hy0-0.01*sc,cz-0.11*sc, cx+0.12*sc,hy1+0.05*sc,cz+0.11*sc, body_col);
+                        // ダガー (背中に2本)
+                        push_box(verts,idxs, cx-0.06*sc,by0+0.22*sc,cz-0.12*sc, cx-0.02*sc,by0+0.44*sc,cz-0.10*sc, weapon_col);
+                        push_box(verts,idxs, cx+0.02*sc,by0+0.22*sc,cz-0.12*sc, cx+0.06*sc,by0+0.44*sc,cz-0.10*sc, weapon_col);
+                    }
+                }
+                // 影
+                push_box(verts,idxs, cx-0.14*sc,0.0,cz-0.11*sc, cx+0.14*sc,0.005*sc,cz+0.11*sc,[0.0,0.0,0.0,0.25]);
+            }
+
+            // ━━ エレメンタル (TILE_ELEMENTAL): 4属性・荒々しいエネルギー体 ━━
+            if base_t == TILE_ELEMENTAL {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx*17+ty*23) as f32;
+                let sc = tier_base * 1.0_f32;
+                let pulse  = (time*2.4+hash).sin()*0.5+0.5_f32;
+                let swirl  = (time*3.2+hash).sin();
+                let bob    = (time*1.8+hash).sin()*0.024*sc;
+                // 属性決定 (4種)
+                let elem = (tx+ty*3) % 4;
+                let (core_col, outer_col, particle_col) = match elem {
+                    0 => ( // 炎
+                        [1.0_f32,0.60,0.10,pulse*2.0+2.5],
+                        [0.96_f32,0.28,0.04,pulse*1.5+1.0],
+                        [1.0_f32,0.80,0.20,pulse*3.0+1.5],
+                    ),
+                    1 => ( // 水
+                        [0.20_f32,0.60,0.96,pulse*2.0+2.5],
+                        [0.10_f32,0.40,0.80,pulse*1.5+1.0],
+                        [0.60_f32,0.86,1.0,pulse*2.5+1.5],
+                    ),
+                    2 => ( // 土
+                        [0.60_f32,0.44,0.22,1.0],
+                        [0.44_f32,0.32,0.14,1.0],
+                        [0.72_f32,0.56,0.30,pulse*1.5+1.0],
+                    ),
+                    _ => ( // 風
+                        [0.80_f32,0.90,0.96,pulse*2.0+1.8],
+                        [0.60_f32,0.76,0.86,pulse*1.5+1.0],
+                        [0.96_f32,0.98,1.0,pulse*2.5+1.5],
+                    ),
+                };
+                // 本体 (渦巻く球体 — 複数の回転するboxで表現)
+                let hy_base = 0.30*sc + bob;
+                push_box(verts,idxs, cx-0.18*sc,hy_base-0.22*sc,cz-0.18*sc, cx+0.18*sc,hy_base+0.22*sc,cz+0.18*sc, outer_col);
+                push_box(verts,idxs, cx-0.22*sc,hy_base-0.14*sc,cz-0.14*sc, cx+0.22*sc,hy_base+0.14*sc,cz+0.14*sc, outer_col);
+                push_box(verts,idxs, cx-0.14*sc,hy_base-0.14*sc,cz-0.22*sc, cx+0.14*sc,hy_base+0.14*sc,cz+0.22*sc, outer_col);
+                // コア (中心で明るく輝く)
+                push_box(verts,idxs, cx-0.10*sc,hy_base-0.12*sc,cz-0.10*sc, cx+0.10*sc,hy_base+0.12*sc,cz+0.10*sc, core_col);
+                push_box(verts,idxs, cx-0.12*sc,hy_base-0.08*sc,cz-0.08*sc, cx+0.12*sc,hy_base+0.08*sc,cz+0.08*sc, core_col);
+                // 属性ごとの特殊エフェクト
+                if elem == 0 { // 炎: 上昇する炎の粒子
+                    for i in 0..5i32 {
+                        let fp=(time*3.5+hash+(i as f32)*0.628).fract();
+                        let fa=fp*std::f32::consts::PI*2.0+(i as f32)*1.257;
+                        let fr=(0.10+fp*0.16)*sc;
+                        push_box(verts,idxs, cx+fa.cos()*fr-0.018*sc,0.0+fp*(0.70*sc),cz+fa.sin()*fr-0.018*sc, cx+fa.cos()*fr+0.018*sc,fp*(0.70*sc)+0.040*sc,cz+fa.sin()*fr+0.018*sc,[particle_col[0],particle_col[1],particle_col[2],(1.0-fp)*2.5+0.3]);
+                    }
+                } else if elem == 1 { // 水: 水滴が回る
+                    for i in 0..4i32 {
+                        let a=time*2.0+hash+(i as f32)*1.571;
+                        let r=0.28*sc; let wh=hy_base-0.06*sc+(i as f32)*0.04*sc;
+                        push_box(verts,idxs, cx+a.cos()*r-0.020*sc,wh,cz+a.sin()*r-0.020*sc, cx+a.cos()*r+0.020*sc,wh+0.040*sc,cz+a.sin()*r+0.020*sc,particle_col);
+                    }
+                } else if elem == 2 { // 土: 岩が浮く
+                    for i in 0..3i32 {
+                        let a=time*0.8+hash+(i as f32)*2.094;
+                        let r=0.26*sc; let rh=hy_base+(i as f32-1.0)*0.12*sc;
+                        push_box(verts,idxs, cx+a.cos()*r-0.040*sc,rh-0.02*sc,cz+a.sin()*r-0.040*sc, cx+a.cos()*r+0.040*sc,rh+0.044*sc,cz+a.sin()*r+0.044*sc,particle_col);
+                    }
+                } else { // 風: 渦を巻く空気
+                    for i in 0..6i32 {
+                        let a=time*4.0+hash+(i as f32)*1.047;
+                        let r=(0.18+(i as f32)*0.04)*sc;
+                        let wh=hy_base+(swirl*(i as f32)*0.040*sc);
+                        push_box(verts,idxs, cx+a.cos()*r-0.014*sc,wh-0.018*sc,cz+a.sin()*r-0.014*sc, cx+a.cos()*r+0.014*sc,wh+0.018*sc,cz+a.sin()*r+0.014*sc,particle_col);
+                    }
+                }
+                // 足元のエネルギー痕
+                push_box(verts,idxs, cx-0.24*sc,0.0,cz-0.24*sc, cx+0.24*sc,0.010*sc,cz+0.24*sc,[outer_col[0],outer_col[1],outer_col[2],pulse*0.6+0.15]);
+                if lights.len()<4 { lights.push(Light{pos:[cx,hy_base+0.20*sc,cz,hash],col:[core_col[0],core_col[1],core_col[2],pulse*4.0+2.0]}); }
+            }
+
+            // ━━ 海の怪物 (TILE_SEA_MON): うねる海蛇・ウナギ・水棲生物 ━━
+            if base_t == TILE_SEA_MON {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx*23+ty*7) as f32;
+                let sc = tier_base * match (tx*3+ty*5)%3 { 0=>0.85_f32, 1=>1.00, _=>1.15 };
+                let (body_col, belly_col, fin_col, eye_col) = match (tx+ty)%4 {
+                    0 => ([0.20_f32,0.50,0.30,1.0],[0.60_f32,0.80,0.60,1.0],[0.16_f32,0.40,0.24,1.0],[0.90_f32,0.80,0.10,2.5]), // 緑海蛇
+                    1 => ([0.16_f32,0.30,0.60,1.0],[0.50_f32,0.70,0.90,1.0],[0.12_f32,0.22,0.50,1.0],[0.96_f32,0.40,0.10,2.5]), // 青ウナギ
+                    2 => ([0.50_f32,0.18,0.18,1.0],[0.80_f32,0.60,0.50,1.0],[0.40_f32,0.12,0.12,1.0],[0.20_f32,0.80,0.20,2.5]), // 赤蛸型
+                    _ => ([0.20_f32,0.42,0.42,1.0],[0.56_f32,0.76,0.72,1.0],[0.14_f32,0.32,0.32,1.0],[1.0_f32,0.60,0.10,2.5]), // 青緑
+                };
+                let wave  = (time*2.6+hash).sin();
+                let wave2 = (time*2.6+hash+1.0).sin();
+                let wave3 = (time*2.6+hash+2.0).sin();
+                let bob   = (time*1.8+hash).sin()*0.016*sc;
+                let pulse = (time*2.2+hash).sin()*0.5+0.5_f32;
+                // うねる胴体 (5セグメント — 蛇行する!)
+                let seg_y = 0.08*sc + bob;
+                // セグメント0 (尾)
+                push_box(verts,idxs, cx-0.060*sc,seg_y+wave3*0.06*sc,cz-0.36*sc, cx+0.060*sc,seg_y+0.10*sc+wave3*0.06*sc,cz-0.24*sc, body_col);
+                // セグメント1
+                push_box(verts,idxs, cx-0.080*sc,seg_y+wave2*0.07*sc,cz-0.26*sc, cx+0.080*sc,seg_y+0.13*sc+wave2*0.07*sc,cz-0.12*sc, body_col);
+                push_box(verts,idxs, cx-0.070*sc,seg_y+wave2*0.07*sc,cz-0.13*sc, cx+0.070*sc,seg_y+0.11*sc+wave2*0.07*sc,cz-0.13*sc, belly_col);
+                // セグメント2 (中央)
+                push_box(verts,idxs, cx-0.100*sc,seg_y+wave*0.08*sc,cz-0.14*sc, cx+0.100*sc,seg_y+0.16*sc+wave*0.08*sc,cz+0.02*sc, body_col);
+                push_box(verts,idxs, cx-0.090*sc,seg_y+wave*0.08*sc,cz-0.01*sc, cx+0.090*sc,seg_y+0.13*sc+wave*0.08*sc,cz+0.02*sc, belly_col);
+                // セグメント3
+                push_box(verts,idxs, cx-0.080*sc,seg_y-wave2*0.07*sc,cz+0.01*sc, cx+0.080*sc,seg_y+0.13*sc-wave2*0.07*sc,cz+0.15*sc, body_col);
+                // 頭
+                let hy=seg_y-wave*0.08*sc; 
+                push_box(verts,idxs, cx-0.12*sc,hy,cz+0.12*sc, cx+0.12*sc,hy+0.18*sc,cz+0.28*sc, body_col);
+                push_box(verts,idxs, cx-0.10*sc,hy,cz+0.20*sc, cx+0.10*sc,hy+0.08*sc,cz+0.30*sc, belly_col);
+                // 目
+                let eg=[eye_col[0],eye_col[1],eye_col[2],pulse*2.0+1.5];
+                let es=0.022*sc;
+                push_box(verts,idxs, cx-0.080*sc-es,hy+0.10*sc,cz+0.270*sc, cx-0.080*sc+es,hy+0.14*sc,cz+0.290*sc,eg);
+                push_box(verts,idxs, cx+0.080*sc-es,hy+0.10*sc,cz+0.270*sc, cx+0.080*sc+es,hy+0.14*sc,cz+0.290*sc,eg);
+                // 牙
+                push_box(verts,idxs, cx-0.040*sc,hy+0.010*sc,cz+0.285*sc, cx-0.012*sc,hy+0.046*sc,cz+0.310*sc,[0.92,0.90,0.84,1.0]);
+                push_box(verts,idxs, cx+0.012*sc,hy+0.010*sc,cz+0.285*sc, cx+0.040*sc,hy+0.046*sc,cz+0.310*sc,[0.92,0.90,0.84,1.0]);
+                // ヒレ (側面)
+                push_box(verts,idxs, cx-0.14*sc,hy+0.06*sc,cz+0.14*sc, cx-0.24*sc,hy+0.14*sc,cz+0.24*sc, fin_col);
+                push_box(verts,idxs, cx+0.14*sc,hy+0.06*sc,cz+0.14*sc, cx+0.24*sc,hy+0.14*sc,cz+0.24*sc, fin_col);
+                // 水の波紋 (足元)
+                push_box(verts,idxs, cx-0.30*sc,0.0,cz-0.30*sc, cx+0.30*sc,0.010*sc,cz+0.30*sc,[0.30,0.60,0.80,pulse*0.4+0.12]);
+                if lights.len()<4 { lights.push(Light{pos:[cx,hy+0.20*sc,cz+0.20*sc,hash],col:[body_col[0],body_col[1],body_col[2],1.5]}); }
+            }
+
+            // ━━ ゼリー/クラゲ (TILE_JELLY): 半透明のぷるぷる体・触手 ━━
+            if base_t == TILE_JELLY {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx*29+ty*13) as f32;
+                let sc = tier_base * match (tx*3+ty*7)%3 { 0=>0.75_f32, 1=>0.90, _=>1.05 };
+                // 色バリエーション (5種)
+                let (jelly_col, glow_col, tentacle_col) = {
+                    let p = (time*1.8+hash).sin()*0.5+0.5_f32;
+                    match (tx+ty*2)%5 {
+                        0 => ([0.90_f32,0.40,0.60,0.55_f32],[1.0_f32,0.60,0.80,p*2.0+1.5],[0.80_f32,0.30,0.50,0.70_f32]),
+                        1 => ([0.40_f32,0.80,0.96,0.55_f32],[0.60_f32,0.96,1.0,p*2.0+1.5],[0.30_f32,0.70,0.90,0.70_f32]),
+                        2 => ([0.80_f32,0.90,0.20,0.55_f32],[0.90_f32,1.0,0.40,p*2.0+1.5],[0.70_f32,0.80,0.14,0.70_f32]),
+                        3 => ([0.60_f32,0.20,0.90,0.55_f32],[0.80_f32,0.40,1.0,p*2.0+1.5],[0.50_f32,0.14,0.80,0.70_f32]),
+                        _ => ([0.20_f32,0.90,0.60,0.55_f32],[0.40_f32,1.0,0.80,p*2.0+1.5],[0.14_f32,0.80,0.50,0.70_f32]),
+                    }
+                };
+                let pulse = (time*1.8+hash).sin()*0.5+0.5_f32;
+                let puff  = (time*2.0+hash).sin()*0.5+0.5_f32; // 膨らみ収縮
+                let bob   = (time*1.4+hash).sin()*0.020*sc + 0.10*sc;
+                let r     = (0.16 + puff*0.04)*sc; // 脈動する半径
+                // 傘 (3段の半球)
+                push_box(verts,idxs, cx-r*1.4,bob,cz-r*1.4, cx+r*1.4,bob+r*0.4,cz+r*1.4, jelly_col);
+                push_box(verts,idxs, cx-r*1.1,bob+r*0.3,cz-r*1.1, cx+r*1.1,bob+r*0.9,cz+r*1.1, jelly_col);
+                push_box(verts,idxs, cx-r*0.7,bob+r*0.7,cz-r*0.7, cx+r*0.7,bob+r*1.4,cz+r*0.7, jelly_col);
+                // コア (内側の輝き)
+                push_box(verts,idxs, cx-r*0.4,bob+r*0.4,cz-r*0.4, cx+r*0.4,bob+r*1.0,cz+r*0.4, glow_col);
+                // 触手 (8本・うねる!)
+                for i in 0..8i32 {
+                    let a=(i as f32)*0.785+time*1.2+hash;
+                    let tr=(r*1.1); 
+                    let tw=(time*3.0+hash+(i as f32)*0.5).sin()*0.06*sc;
+                    let tl=0.18*sc+((i%3) as f32)*0.06*sc;
+                    push_box(verts,idxs, cx+a.cos()*tr-0.016*sc,bob-0.02*sc,cz+a.sin()*tr-0.016*sc, cx+a.cos()*tr+0.016*sc,bob+tw,cz+a.sin()*tr+0.016*sc, tentacle_col);
+                    push_box(verts,idxs, cx+a.cos()*(tr*0.8)-0.012*sc,bob-0.02*sc-tl*0.4,cz+a.sin()*(tr*0.8)-0.012*sc, cx+a.cos()*(tr*0.8)+0.012*sc,bob-0.02*sc,cz+a.sin()*(tr*0.8)+0.012*sc, tentacle_col);
+                }
+                // 床への投影 (半透明の影)
+                push_box(verts,idxs, cx-r*1.2,0.0,cz-r*1.2, cx+r*1.2,0.007*sc,cz+r*1.2,[jelly_col[0],jelly_col[1],jelly_col[2],puff*0.3+0.1]);
+                if lights.len()<4 { lights.push(Light{pos:[cx,bob+r*0.8,cz,hash],col:[glow_col[0],glow_col[1],glow_col[2],pulse*3.0+1.5]}); }
+            }
+
+            // ━━ 巨大ワーム (TILE_WORM): 紫の巨大ミミズ・多節・飲み込む口 ━━
+            if base_t == TILE_WORM {
+                let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
+                let hash = (tx*7+ty*41) as f32;
+                let sc = tier_base * match (tx*5+ty*3)%3 { 0=>0.90_f32, 1=>1.10, _=>1.25 };
+                let worm_col  = [0.54_f32, 0.20, 0.62, 1.0]; // 紫
+                let worm_sh   = [0.38_f32, 0.12, 0.46, 1.0]; // 暗い紫
+                let worm_ring = [0.66_f32, 0.28, 0.76, 1.0]; // 体節の輪
+                let mouth_col = [0.80_f32, 0.24, 0.30, 1.0]; // 口の中
+                let tooth_col = [0.92_f32, 0.88, 0.82, 1.0]; // 歯
+                let eye_col   = [0.20_f32, 0.92, 0.30, 3.5]; // 緑光る目
+                let undulate  = (time*2.0+hash).sin();
+                let undulate2 = (time*2.0+hash+0.8).sin();
+                let undulate3 = (time*2.0+hash+1.6).sin();
+                let bob = (time*1.6+hash).sin().abs()*0.018*sc;
+                let maw_open  = (time*1.4+hash).sin()*0.5+0.5_f32; // 口が開閉
+                // 尾セグメント (細い)
+                push_box(verts,idxs, cx-0.08*sc,0.0+undulate3*0.04*sc,cz-0.44*sc, cx+0.08*sc,0.14*sc+undulate3*0.04*sc,cz-0.28*sc, worm_sh);
+                push_box(verts,idxs, cx-0.07*sc,0.0+undulate3*0.04*sc,cz-0.30*sc, cx+0.07*sc,0.14*sc+undulate3*0.04*sc,cz-0.28*sc, worm_ring);
+                // セグメント1
+                push_box(verts,idxs, cx-0.13*sc,0.0+undulate2*0.05*sc,cz-0.30*sc, cx+0.13*sc,0.20*sc+undulate2*0.05*sc,cz-0.12*sc, worm_col);
+                push_box(verts,idxs, cx-0.12*sc,0.0+undulate2*0.05*sc,cz-0.14*sc, cx+0.12*sc,0.14*sc+undulate2*0.05*sc,cz-0.12*sc, worm_ring);
+                // セグメント2 (最大)
+                push_box(verts,idxs, cx-0.18*sc,0.0+undulate*0.06*sc,cz-0.14*sc, cx+0.18*sc,0.28*sc+undulate*0.06*sc,cz+0.06*sc, worm_col);
+                push_box(verts,idxs, cx-0.16*sc,0.0+undulate*0.06*sc,cz+0.04*sc, cx+0.16*sc,0.20*sc+undulate*0.06*sc,cz+0.06*sc, worm_ring);
+                // セグメント3
+                push_box(verts,idxs, cx-0.14*sc,bob+undulate2*0.05*sc,cz+0.04*sc, cx+0.14*sc,bob+0.22*sc+undulate2*0.05*sc,cz+0.18*sc, worm_col);
+                push_box(verts,idxs, cx-0.13*sc,bob+undulate2*0.05*sc,cz+0.16*sc, cx+0.13*sc,bob+0.16*sc+undulate2*0.05*sc,cz+0.18*sc, worm_ring);
+                // 首 (頭に続く)
+                let hy_base = bob+0.14*sc;
+                push_box(verts,idxs, cx-0.16*sc,hy_base,cz+0.14*sc, cx+0.16*sc,hy_base+0.20*sc,cz+0.30*sc, worm_col);
+                // 頭 (巨大な丸い口!)
+                let hy0=hy_base+0.16*sc; let hy1=hy0+0.28*sc;
+                push_box(verts,idxs, cx-0.22*sc,hy0,cz+0.22*sc, cx+0.22*sc,hy1,cz+0.46*sc, worm_col);
+                push_box(verts,idxs, cx-0.24*sc,hy0+0.04*sc,cz+0.24*sc, cx-0.18*sc,hy1-0.04*sc,cz+0.44*sc, worm_sh);
+                push_box(verts,idxs, cx+0.18*sc,hy0+0.04*sc,cz+0.24*sc, cx+0.24*sc,hy1-0.04*sc,cz+0.44*sc, worm_sh);
+                // 口 (開いている! 内側は赤)
+                let maw_size = 0.12*sc + maw_open*0.06*sc;
+                push_box(verts,idxs, cx-0.18*sc,hy0+maw_open*0.04*sc,cz+0.44*sc, cx+0.18*sc,hy0+maw_size*1.2+maw_open*0.04*sc,cz+0.48*sc, mouth_col);
+                push_box(verts,idxs, cx-0.18*sc,hy0+maw_size*0.8-maw_open*0.04*sc,cz+0.44*sc, cx+0.18*sc,hy0+0.06*sc-maw_open*0.04*sc,cz+0.48*sc, mouth_col);
+                // 歯 (上下に並ぶ)
+                for i in 0..5i32 {
+                    let tx2=cx-0.14*sc+(i as f32)*0.07*sc;
+                    push_box(verts,idxs, tx2-0.014*sc,hy0+maw_size*0.9+maw_open*0.02*sc,cz+0.435*sc, tx2+0.014*sc,hy0+maw_size*1.4+maw_open*0.02*sc,cz+0.480*sc, tooth_col);
+                    push_box(verts,idxs, tx2-0.014*sc,hy0+0.010*sc-maw_open*0.02*sc,cz+0.435*sc, tx2+0.014*sc,hy0+maw_size*0.4-maw_open*0.02*sc,cz+0.480*sc, tooth_col);
+                }
+                // 目 (頭の上部・小さいが輝く)
+                let pulse=(time*2.4+hash).sin()*0.5+0.5_f32;
+                let eg=[eye_col[0],eye_col[1],eye_col[2],pulse*2.0+2.0];
+                let es=0.026*sc; let eyz=hy0+(hy1-hy0)*0.75; let efz=cz+0.445*sc;
+                push_box(verts,idxs, cx-0.08*sc-es,eyz-es*0.4,efz, cx-0.08*sc+es,eyz+es*0.7,efz+es*0.4,eg);
+                push_box(verts,idxs, cx+0.08*sc-es,eyz-es*0.4,efz, cx+0.08*sc+es,eyz+es*0.7,efz+es*0.4,eg);
+                // 体節の輪
+                for i in 0..4i32 {
+                    let rz=cz-0.36*sc+(i as f32)*0.20*sc;
+                    push_box(verts,idxs, cx-0.20*sc,bob+0.14*sc,rz, cx+0.20*sc,bob+0.16*sc,rz+0.022*sc,[worm_ring[0],worm_ring[1],worm_ring[2],0.8]);
+                }
+                if lights.len()<4 { lights.push(Light{pos:[cx,hy1,cz+0.36*sc,hash],col:[0.54,0.20,0.70,pulse*3.0+1.5]}); }
             }
 
             // ━━ ボスオーラ (tier==3): 足元に黄金発光ディスク ━━
