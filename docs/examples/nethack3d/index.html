@@ -1466,8 +1466,9 @@ function getEffectiveFacing() {
 function remapDirKey(code) {
     const i = REMAP_KEYS.indexOf(code);
     if (i < 0) return code;
-    // TOPカメラ: 回転に関係なく矢印＝マップ方向固定（リマップなし）
-    if (currentCamMode === 'TOP') return code;
+    // TOPカメラ: カメラの向きにより上下・左右ともに反転固定（回転無関係）
+    // k→j, j→k, h→l, l→h（南が画面上・東が画面左のため）
+    if (currentCamMode === 'TOP') return TOP_REMAP[i];
     return REMAP_TABLE[getEffectiveFacing()][i];
 }
 
