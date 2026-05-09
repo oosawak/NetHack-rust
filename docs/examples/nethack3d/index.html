@@ -1197,18 +1197,19 @@ function update3dMap() {
 
     nethack3d.set_map_nethack3d(tiles, dungeonW, dungeonH);
     if (foundPX >= 0) {
-        // NetHack はプレイヤーの向きなし: カメラ固定
-        if (prevPlayer3dX >= 0) {
-            const dx = foundPX - player3dX;
-            const dz = foundPZ - player3dZ;
-            if (dx !== 0 || dz !== 0) {
-                dbg(`moved dx=${dx} dz=${dz}`);
-            }
-        }
         prevPlayer3dX = player3dX;
         prevPlayer3dZ = player3dZ;
         player3dX = foundPX;
         player3dZ = foundPZ;
+        if (prevPlayer3dX >= 0) {
+            const dx = player3dX - prevPlayer3dX;
+            const dz = player3dZ - prevPlayer3dZ;
+            if (dx !== 0 || dz !== 0) {
+                dbg(`moved dx=${dx} dz=${dz}`);
+                // 移動先タイルに何かあれば自動ポップアップ
+                showEntityPopupOnStep(player3dX, player3dZ);
+            }
+        }
     }
     nethack3d.set_player_nethack3d(player3dX, player3dZ, playerFacing);
     drawMinimap();
@@ -1654,20 +1655,26 @@ function showEntityPopupAtTouch(tx, ty) {
         if (d < bestDist) { bestDist = d; best = ent; }
     }
     if (!best) return;
+    buildAndShowEntityPopup(best, tx, ty, false);
+}
+
+// エンティティ情報ポップアップを構築・表示する共通関数
+// autoClose=true: アクションボタンがあっても4秒後に自動的に消える（歩行中トリガー用）
+function buildAndShowEntityPopup(ent, anchorX, anchorY, autoClose) {
+    const sw = window.innerWidth, sh = window.innerHeight;
 
     // 距離ヘルパー
     const px = Math.round(player3dX), pz = Math.round(player3dZ);
-    const isSameTile = best.tx === px && best.tz === pz;
-    const isAdjacent = Math.abs(best.tx - px) <= 1 && Math.abs(best.tz - pz) <= 1
+    const isSameTile = ent.tx === px && ent.tz === pz;
+    const isAdjacent = Math.abs(ent.tx - px) <= 1 && Math.abs(ent.tz - pz) <= 1
                        && !isSameTile;
 
     // 情報組み立て
     let emoji = '?', title = '???', row1 = '', row2 = '';
-    const hash = (best.tx * 13 + best.tz * 7);
+    const hash = (ent.tx * 13 + ent.tz * 7);
 
-    if (best.ch === '@') {
+    if (ent.ch === '@') {
         emoji = '🧙'; title = 'プレイヤー';
-        // ステータス行から HP/AC などを抽出
         const st = statusEl.textContent || '';
         const hp  = st.match(/HP:(\d+)\((\d+)\)/);
         const ac  = st.match(/AC:(-?\d+)/);
@@ -1678,38 +1685,37 @@ function showEntityPopupAtTouch(tx, ty) {
             row1 = `❤️ HP: ${hp[1]}/${hp[2]}  🛡 AC: ${ac?.[1] ?? '?'}  ✨ Xp: ${xp?.[1] ?? '?'}`;
             row2 = `🏰 階: ${dlv?.[1] ?? '?'}  💰 金: ${gld?.[1] ?? '?'}`;
         } else {
-            row1 = `位置: (${best.tx}, ${best.tz})`;
+            row1 = `位置: (${ent.tx}, ${ent.tz})`;
             row2 = '探索者よ、気をつけて！';
         }
-    } else if (best.ch === 'd' || best.ch === 'f') {
+    } else if (ent.ch === 'd' || ent.ch === 'f') {
         emoji = '🐕'; title = '犬 (Dog)';
         const szIdx = hash % 3;
-        const colIdx = (best.tx * 7 + best.tz * 11) % 5;
+        const colIdx = (ent.tx * 7 + ent.tz * 11) % 5;
         row1 = `サイズ: ${DOG_SIZES[szIdx]}`;
         row2 = `毛色: ${DOG_COLORS[colIdx]}`;
-    } else if (best.ch === 'c') {
+    } else if (ent.ch === 'c') {
         emoji = '🐱'; title = 'ネコ (Cat)';
         row1 = isAdjacent ? '隣にいます' : '近くにいます';
-    } else if (best.ch === '<') {
+    } else if (ent.ch === '<') {
         emoji = '🔼'; title = '上り階段';
-        row1 = isSameTile ? '重なっています — 昇れます' : '上り階段';
-    } else if (best.ch === '>') {
+        row1 = isSameTile ? '重なっています — 昇れます (<キー)' : '上り階段';
+    } else if (ent.ch === '>') {
         emoji = '🔽'; title = '下り階段';
-        row1 = isSameTile ? '重なっています — 降りられます' : '下り階段';
-    } else if ('$:!?/=%*([)'.includes(best.ch)) {
+        row1 = isSameTile ? '重なっています — 降りられます (>キー)' : '下り階段';
+    } else if ('$:!?/=%*([)'.includes(ent.ch)) {
         const itemEmojis = { '$':'💰', ':':'🍖', '!':'⚗️', '?':'📜', '/':'🪄', '=':'💍', '%':'🍎', '*':'💎', '(':'📦', '[':'🛡', ')':'⚔️' };
-        emoji = itemEmojis[best.ch] || '✨';
+        emoji = itemEmojis[ent.ch] || '✨';
         title = 'アイテム';
-        row1 = isSameTile ? '重なっています — 拾えます' : '移動して重なると拾えます';
-    } else if (best.ch === 'm') {
-        // ミミック：宝箱に見えるが実はモンスター（発見済み）
+        row1 = isSameTile ? '足元にあります — 拾えます (,キー)' : '移動して重なると拾えます';
+    } else if (ent.ch === 'm') {
         emoji = '📦'; title = '！ミミック (Mimic)';
         row1 = '⚠️ 宝箱に化けていたモンスター';
         row2 = isAdjacent ? '隣にいます — 攻撃可能' : '近づくと攻撃してきます';
     } else {
-        const info = MONSTER_INFO[best.ch];
+        const info = MONSTER_INFO[ent.ch];
         emoji = info?.emoji || '👾';
-        title = info ? `${info.name} (${info.en})` : `モンスター (${best.ch})`;
+        title = info ? `${info.name} (${info.en})` : `モンスター (${ent.ch})`;
         row1 = isAdjacent ? '隣にいます — 攻撃可能' : '危険! 近づくと戦闘';
     }
 
@@ -1720,14 +1726,14 @@ function showEntityPopupAtTouch(tx, ty) {
 
     // アクションボタン
     epActions.innerHTML = '';
-    const isPlayer  = best.ch === '@';
-    const isMimic   = best.ch === 'm';
-    const isMonster = !isPlayer && !isMimic && best.ch !== '<' && best.ch !== '>' &&
-                      !'$:!?/=%*([)'.includes(best.ch) &&
-                      best.ch !== 'd' && best.ch !== 'f' && best.ch !== 'c';
-    const isPet   = best.ch === 'd' || best.ch === 'f' || best.ch === 'c';
-    const isItem  = '$:!?/=%*([)'.includes(best.ch);
-    const isStairs = best.ch === '<' || best.ch === '>';
+    const isPlayer  = ent.ch === '@';
+    const isMimic   = ent.ch === 'm';
+    const isMonster = !isPlayer && !isMimic && ent.ch !== '<' && ent.ch !== '>' &&
+                      !'$:!?/=%*([)'.includes(ent.ch) &&
+                      ent.ch !== 'd' && ent.ch !== 'f' && ent.ch !== 'c';
+    const isPet   = ent.ch === 'd' || ent.ch === 'f' || ent.ch === 'c';
+    const isItem  = '$:!?/=%*([)'.includes(ent.ch);
+    const isStairs = ent.ch === '<' || ent.ch === '>';
 
     function makeActBtn(label, cls, onClick) {
         const b = document.createElement('button');
@@ -1740,23 +1746,20 @@ function showEntityPopupAtTouch(tx, ty) {
     }
 
     if (isPlayer) {
-        // 同タイルにアイテムがある可能性 → 常に拾うボタン提供
         makeActBtn('⬆️ 拾う (,)', '', () => sendKey(44));
         makeActBtn('📦 持ち物 (i)', 'ep-act-look', () => sendKey(105));
         makeActBtn('🧬 能力 (@)', 'ep-act-look', () => sendKey(64));
     } else if (isMimic || isMonster) {
         if (isAdjacent) {
-            const dirKey = dirKeyToward(best.tx, best.tz);
+            const dirKey = dirKeyToward(ent.tx, ent.tz);
             if (dirKey) makeActBtn('⚔️ 攻撃', '', () => sendKey(dirKey));
         }
         makeActBtn('👁 見る', 'ep-act-look', () => sendKey(58));
     } else if (isPet) {
         if (isAdjacent) {
-            // #chat + 方向でペットに話しかける
-            const dirKey = dirKeyToward(best.tx, best.tz);
+            const dirKey = dirKeyToward(ent.tx, ent.tz);
             if (dirKey) {
                 makeActBtn('🐾 なでる', 'ep-act-look', () => {
-                    // '#chat\n' + 方向
                     [35,99,104,97,116,13,dirKey].forEach(k => keyQueue.push(k));
                 });
             }
@@ -1767,8 +1770,8 @@ function showEntityPopupAtTouch(tx, ty) {
         }
     } else if (isStairs) {
         if (isSameTile) {
-            const key = best.ch === '>' ? 62 : 60;
-            makeActBtn(best.ch === '>' ? '🔽 降りる' : '🔼 昇る', '', () => sendKey(key));
+            const key = ent.ch === '>' ? 62 : 60;
+            makeActBtn(ent.ch === '>' ? '🔽 降りる' : '🔼 昇る', '', () => sendKey(key));
         }
     }
 
@@ -1778,22 +1781,32 @@ function showEntityPopupAtTouch(tx, ty) {
         entityPopup.classList.remove('has-actions');
     }
 
-    // ポップアップ位置 (タップ点の上に表示, 画面端考慮)
+    // ポップアップ位置
     entityPopup.style.display = 'block';
     const pw = entityPopup.offsetWidth  || 180;
     const ph = entityPopup.offsetHeight || 100;
-    let popX = tx - pw * 0.5;
-    let popY = ty - ph - 16;
+    let popX = anchorX - pw * 0.5;
+    let popY = anchorY - ph - 16;
     popX = Math.max(6, Math.min(sw - pw - 6, popX));
     popY = Math.max(44, popY);
     entityPopup.style.left = popX + 'px';
     entityPopup.style.top  = popY + 'px';
 
     if (popupTimer) clearTimeout(popupTimer);
-    // アクションボタンがある場合は自動で消えない
-    if (epActions.children.length === 0) {
-        popupTimer = setTimeout(() => hideEntityPopup(), 3000);
+    const delay = autoClose ? 4000 : 3000;
+    if (epActions.children.length === 0 || autoClose) {
+        popupTimer = setTimeout(() => hideEntityPopup(), delay);
     }
+}
+
+// プレイヤーが踏んだタイルに何かあれば自動ポップアップ表示
+function showEntityPopupOnStep(tileX, tileZ) {
+    // アイテム・階段・トラップ・祭壇・泉 のみ自動表示（モンスターは戦闘テキストが出るため除外）
+    const AUTO_SHOW_CHARS = new Set(['<', '>', '$', ':', '!', '?', '/', '=', '%', '*', '(', '[', ')']);
+    const ent = entityList.find(e => e.tx === tileX && e.tz === tileZ && AUTO_SHOW_CHARS.has(e.ch));
+    if (!ent) return;
+    // 画面中央下寄りに表示
+    buildAndShowEntityPopup(ent, window.innerWidth / 2, window.innerHeight * 0.72, true);
 }
 
 // canvas タップ (非ジョイスティック側でエンティティ検出)
