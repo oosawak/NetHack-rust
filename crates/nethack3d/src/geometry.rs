@@ -332,12 +332,16 @@ pub fn build_dungeon(
             if base_t == TILE_DOOR {
                 let cx=(x0+x1)*0.5; let cz=(z0+z1)*0.5;
                 let hash=(tx*11+ty*13) as f32;
-                // 扉の向き: 東西にパッセージがあれば横向き、それ以外は縦向き
-                let ns_pass = is_passable(get_tile(tiles,w,h,tx as i32,ty as i32-1))
-                           || is_passable(get_tile(tiles,w,h,tx as i32,ty as i32+1));
-                let ew_pass = is_passable(get_tile(tiles,w,h,tx as i32-1,ty as i32))
-                           || is_passable(get_tile(tiles,w,h,tx as i32+1,ty as i32));
-                let (dw, dd) = if ew_pass && !ns_pass { (0.44_f32, 0.06_f32) } else { (0.06_f32, 0.44_f32) };
+                // 扉の向き: 隣接タイルの壁有無で判定
+                // N/Sに壁 → EW通路 → 扉はNS向き(X薄,Z広) dw=0.06,dd=0.44
+                // E/Wに壁 → NS通路 → 扉はEW向き(X広,Z薄) dw=0.44,dd=0.06
+                let n_wall = is_solid(get_tile(tiles,w,h,tx as i32,  ty as i32-1));
+                let s_wall = is_solid(get_tile(tiles,w,h,tx as i32,  ty as i32+1));
+                let e_wall = is_solid(get_tile(tiles,w,h,tx as i32+1,ty as i32  ));
+                let w_wall = is_solid(get_tile(tiles,w,h,tx as i32-1,ty as i32  ));
+                // EW通路: N/Sどちらかが壁, E/Wは壁でない
+                let ew_corridor = (n_wall || s_wall) && !(e_wall || w_wall);
+                let (dw, dd) = if ew_corridor { (0.06_f32, 0.44_f32) } else { (0.44_f32, 0.06_f32) };
                 // 石のフレーム（左右の柱）
                 let frame_col = [0.38_f32,0.34,0.30,1.0];
                 let wood_col  = [0.48_f32,0.28,0.10,1.0];
@@ -353,107 +357,156 @@ pub fn build_dungeon(
                 push_box(verts,idxs, cx-dw,0.04,cz-dd, cx+dw,wall_h-0.06,cz+dd, wood_col);
                 // 板の縦筋（3本）
                 for pi in 0..3i32 {
-                    let px2 = if ew_pass {
-                        cx - 0.30 + pi as f32 * 0.28
-                    } else {
+                    let px2 = if ew_corridor {
                         cx - 0.015
-                    };
-                    let pz2 = if ew_pass {
-                        cz - 0.015
                     } else {
+                        cx - 0.30 + pi as f32 * 0.28
+                    };
+                    let pz2 = if ew_corridor {
                         cz - 0.30 + pi as f32 * 0.28
-                    };
-                    if ew_pass {
-                        push_box(verts,idxs, px2-0.02,0.04,cz-dd-0.01, px2+0.02,wall_h-0.06,cz+dd+0.01, plank_col);
                     } else {
-                        push_box(verts,idxs, cx-dd-0.01,0.04,pz2-0.02, cx+dd+0.01,wall_h-0.06,pz2+0.02, plank_col);
+                        cz - 0.015
+                    };
+                    if ew_corridor {
+                        push_box(verts,idxs, cx-dw-0.01,0.04,pz2-0.02, cx+dw+0.01,wall_h-0.06,pz2+0.02, plank_col);
+                    } else {
+                        push_box(verts,idxs, px2-0.02,0.04,cz-dd-0.01, px2+0.02,wall_h-0.06,cz+dd+0.01, plank_col);
                     }
                 }
                 // 蝶番（上下2つ）
                 let hinge_y = [0.25_f32, wall_h-0.40];
                 for &hy in &hinge_y {
-                    push_box(verts,idxs, cx-dw-0.02,hy,cz-dd-0.02, cx-dw+0.02,hy+0.12,cz+dd+0.02, metal_col);
+                    if ew_corridor {
+                        push_box(verts,idxs, cx-dw-0.02,hy,cz-dd-0.02, cx+dw+0.02,hy+0.12,cz+dd+0.02, metal_col);
+                    } else {
+                        push_box(verts,idxs, cx-dw-0.02,hy,cz-dd-0.02, cx+dw+0.02,hy+0.12,cz+dd+0.02, metal_col);
+                    }
                 }
-                // ドアノブ（光る）
+                // ドアノブ（光る）― EW通路:Z+ 側, NS通路:X+ 側
                 let knob_pulse = (time*2.0+hash).sin()*0.3+0.7_f32;
-                push_box(verts,idxs, cx+dw-0.06,wall_h*0.46,cz-dd-0.02, cx+dw+0.02,wall_h*0.54,cz+dd+0.02, [0.85,0.75,0.15, knob_pulse*2.0+0.8]);
+                if ew_corridor {
+                    push_box(verts,idxs, cx-dw-0.02,wall_h*0.46,cz+dd-0.06, cx+dw+0.02,wall_h*0.54,cz+dd+0.02, [0.85,0.75,0.15, knob_pulse*2.0+0.8]);
+                } else {
+                    push_box(verts,idxs, cx+dw-0.06,wall_h*0.46,cz-dd-0.02, cx+dw+0.02,wall_h*0.54,cz+dd+0.02, [0.85,0.75,0.15, knob_pulse*2.0+0.8]);
+                }
                 if lights.len()<4 { lights.push(Light{pos:[cx,wall_h*0.5,cz,hash],col:[0.80,0.55,0.20,knob_pulse*1.5+0.5]}); }
             }
 
-            // ━━ 上り階段 (TILE_STAIRS_U): 石の段・上方向矢印の光 ━━
+            // ━━ 上り階段 (TILE_STAIRS_U): 5段の石段・手すり・上昇グロー ━━
             if base_t == TILE_STAIRS_U {
                 let cx=(x0+x1)*0.5; let cz=(z0+z1)*0.5;
                 let hash=(tx*13+ty*7) as f32;
                 let pulse=(time*1.5+hash).sin()*0.5+0.5_f32;
-                let stone_col = [0.38_f32,0.36,0.32,1.0];
-                let edge_col  = [0.48_f32,0.46,0.42,1.0];
-                let arrow_col = [0.30_f32,0.80,0.40, pulse*2.5+1.0];
-                // 4段の石段（奥から手前に低くなる）
-                let steps = 4;
-                for si in 0..steps {
+
+                let stone_col = [0.42_f32, 0.40, 0.36, 1.0]; // 石段
+                let tread_col = [0.58_f32, 0.55, 0.50, 1.0]; // 踏み面 (明るい)
+                let riser_col = [0.22_f32, 0.21, 0.19, 1.0]; // 立面 (暗い)
+                let side_col  = [0.35_f32, 0.33, 0.30, 1.0]; // 側壁
+                let rail_col  = [0.68_f32, 0.62, 0.52, 1.0]; // 手すりバー
+                let glow_col  = [0.25_f32, 0.88, 0.38, pulse * 3.0 + 1.5]; // 緑グロー
+
+                let n: usize  = 5;
+                let step_d    = 0.80 / n as f32; // 各段の奥行き
+                let step_h    = 0.18_f32;         // 各段の高さ
+                let zs        = cz - 0.40_f32;    // 最前段Z
+
+                // 手前(低) → 奥(高) の5段
+                for si in 0..n {
                     let sf = si as f32;
-                    let step_h = (steps - si) as f32 * (wall_h * 0.18);
-                    let step_z0 = cz - 0.44 + sf*0.22;
-                    let step_z1 = step_z0 + 0.22;
-                    // 段面
-                    push_box(verts,idxs, cx-0.44,0.0,step_z0, cx+0.44,step_h,step_z1, stone_col);
-                    // 段の前エッジ（明るい）
-                    push_box(verts,idxs, cx-0.44,step_h-0.03,step_z0, cx+0.44,step_h+0.01,step_z0+0.04, edge_col);
+                    let z0s = zs + sf * step_d;
+                    let z1s = z0s + step_d;
+                    let ph  = sf * step_h;         // 前の段の高さ
+                    let h   = (sf + 1.0) * step_h; // この段の高さ
+                    // 段の本体ブロック
+                    push_box(verts,idxs, cx-0.40,0.0,z0s, cx+0.40,h,z1s, stone_col);
+                    // 踏み面ハイライト (薄い明るい板を上面に)
+                    push_box(verts,idxs, cx-0.40,h,z0s, cx+0.40,h+0.018,z1s, tread_col);
+                    // 立面ハイライト (段の前面を暗く)
+                    push_box(verts,idxs, cx-0.40,ph,z0s, cx+0.40,h,z0s+0.028, riser_col);
                 }
-                // 側壁（左右の石）
-                push_box(verts,idxs, cx-0.48,0.0,cz-0.44, cx-0.42,wall_h*0.72,cz+0.44, stone_col);
-                push_box(verts,idxs, cx+0.42,0.0,cz-0.44, cx+0.48,wall_h*0.72,cz+0.44, stone_col);
-                // 上方向の矢印マーカー（床面に発光）
-                push_box(verts,idxs, cx-0.06,0.01,cz-0.18, cx+0.06,0.03,cz+0.10, arrow_col);
-                push_box(verts,idxs, cx-0.14,0.01,cz-0.06, cx+0.14,0.03,cz+0.06, arrow_col);
-                // 矢印先端（三角形）
-                push_box(verts,idxs, cx-0.10,0.01,cz-0.30, cx+0.10,0.03,cz-0.10, arrow_col);
-                // 浮かぶ光の粒（上昇アニメ）
-                for i in 0..3i32 {
-                    let ph = hash + i as f32 * 1.2;
-                    let py = ((time*1.2+ph).fract()) * wall_h;
-                    let pr = 0.04;
-                    push_box(verts,idxs, cx-pr,py,cz-pr, cx+pr,py+0.06,cz+pr, [0.40,0.95,0.50, pulse*3.0+1.5]);
+
+                let max_h = n as f32 * step_h;
+
+                // 側壁 (左右)
+                push_box(verts,idxs, cx-0.48,0.0,zs, cx-0.40,max_h+0.32,zs+0.80, side_col);
+                push_box(verts,idxs, cx+0.40,0.0,zs, cx+0.48,max_h+0.32,zs+0.80, side_col);
+                // 手すりバー (側壁上部・水平)
+                push_box(verts,idxs, cx-0.49,max_h+0.28,zs, cx-0.38,max_h+0.36,zs+0.82, rail_col);
+                push_box(verts,idxs, cx+0.38,max_h+0.28,zs, cx+0.49,max_h+0.36,zs+0.82, rail_col);
+                // 柱 (前後2本ずつ)
+                push_box(verts,idxs, cx-0.48,0.0,zs,       cx-0.40,max_h+0.55,zs+0.06,   rail_col);
+                push_box(verts,idxs, cx-0.48,0.0,zs+0.78,  cx-0.40,max_h+0.55,zs+0.82,   rail_col);
+                push_box(verts,idxs, cx+0.40,0.0,zs,       cx+0.48,max_h+0.55,zs+0.06,   rail_col);
+                push_box(verts,idxs, cx+0.40,0.0,zs+0.78,  cx+0.48,max_h+0.55,zs+0.82,   rail_col);
+
+                // 上昇する光の粒 (緑)
+                for i in 0..4i32 {
+                    let ph2 = hash + i as f32 * 1.1;
+                    let py  = ((time * 1.2 + ph2).fract()) * (max_h + 0.6);
+                    let pr  = 0.035_f32;
+                    push_box(verts,idxs, cx-pr,py,cz-pr, cx+pr,py+0.07,cz+pr, glow_col);
                 }
-                if lights.len()<4 { lights.push(Light{pos:[cx,0.3,cz,hash],col:[0.30,0.90,0.40, pulse*3.0+1.5]}); }
+                if lights.len()<4 { lights.push(Light{pos:[cx,0.5,cz,hash],col:[0.25,0.90,0.40, pulse*3.5+1.5]}); }
             }
 
-            // ━━ 下り階段 (TILE_STAIRS_D): 暗い石段・奈落への光 ━━
+            // ━━ 下り階段 (TILE_STAIRS_D): 5段の石段・手すり・奈落グロー ━━
             if base_t == TILE_STAIRS_D {
                 let cx=(x0+x1)*0.5; let cz=(z0+z1)*0.5;
                 let hash=(tx*17+ty*11) as f32;
                 let pulse=(time*1.2+hash).sin()*0.5+0.5_f32;
-                let stone_col = [0.28_f32,0.26,0.24,1.0];
-                let edge_col  = [0.20_f32,0.18,0.16,1.0]; // 暗いエッジ
-                let abyss_col = [0.05_f32,0.05,0.08,1.0]; // 奈落の暗闇
-                let arrow_col = [0.75_f32,0.25,0.15, pulse*2.5+1.0]; // 赤い下降矢印
-                // 手前から奥に下がる4段
-                let steps = 4;
-                for si in 0..steps {
-                    let sf = si as f32;
-                    let step_h = sf * (wall_h * 0.18);
-                    let step_z0 = cz - 0.44 + sf*0.22;
-                    let step_z1 = step_z0 + 0.22;
-                    push_box(verts,idxs, cx-0.44,0.0,step_z0, cx+0.44,step_h,step_z1, stone_col);
-                    push_box(verts,idxs, cx-0.44,step_h-0.03,step_z1-0.04, cx+0.44,step_h+0.01,step_z1, edge_col);
+
+                let stone_col = [0.30_f32, 0.28, 0.25, 1.0]; // 暗い石段
+                let tread_col = [0.20_f32, 0.18, 0.16, 1.0]; // 踏み面 (より暗い)
+                let riser_col = [0.14_f32, 0.13, 0.11, 1.0]; // 立面 (最暗)
+                let side_col  = [0.26_f32, 0.24, 0.22, 1.0]; // 側壁
+                let rail_col  = [0.48_f32, 0.44, 0.38, 1.0]; // 手すりバー
+                let abyss_col = [0.04_f32, 0.03, 0.06, 1.0]; // 奈落の闇
+                let glow_col  = [0.85_f32, 0.18, 0.08, pulse * 3.0 + 1.0]; // 赤グロー
+
+                let n: usize  = 5;
+                let step_d    = 0.80 / n as f32;
+                let step_h    = 0.18_f32;
+                let zs        = cz - 0.40_f32;
+                let max_h     = n as f32 * step_h;
+
+                // 手前(高) → 奥(低) の5段 (下り)
+                for si in 0..n {
+                    let sf  = si as f32;
+                    let z0s = zs + sf * step_d;
+                    let z1s = z0s + step_d;
+                    let h   = (n as f32 - sf) * step_h; // 手前ほど高い
+                    let nh  = if si + 1 < n { (n as f32 - sf - 1.0) * step_h } else { 0.0 };
+                    // 段の本体ブロック
+                    push_box(verts,idxs, cx-0.40,0.0,z0s, cx+0.40,h,z1s, stone_col);
+                    // 踏み面ハイライト
+                    push_box(verts,idxs, cx-0.40,h,z0s, cx+0.40,h+0.018,z1s, tread_col);
+                    // 立面ハイライト (段の奥面・次の段への落ち)
+                    push_box(verts,idxs, cx-0.40,nh,z1s-0.028, cx+0.40,h,z1s, riser_col);
                 }
-                // 奈落の穴（最深部）
-                push_box(verts,idxs, cx-0.36,0.0,cz+0.10, cx+0.36,0.02,cz+0.44, abyss_col);
-                // 側壁（左右）
-                push_box(verts,idxs, cx-0.48,0.0,cz-0.44, cx-0.42,wall_h*0.72,cz+0.44, stone_col);
-                push_box(verts,idxs, cx+0.42,0.0,cz-0.44, cx+0.48,wall_h*0.72,cz+0.44, stone_col);
-                // 下降矢印（床面）
-                push_box(verts,idxs, cx-0.06,0.01,cz-0.10, cx+0.06,0.03,cz+0.18, arrow_col);
-                push_box(verts,idxs, cx-0.14,0.01,cz-0.06, cx+0.14,0.03,cz+0.06, arrow_col);
-                push_box(verts,idxs, cx-0.10,0.01,cz+0.10, cx+0.10,0.03,cz+0.30, arrow_col);
-                // 奈落から湧き上がる暗い靄（下降するパーティクル）
-                for i in 0..3i32 {
+
+                // 奈落の穴 (最奥の暗い床)
+                push_box(verts,idxs, cx-0.40,0.0,zs+0.80, cx+0.40,0.018,cz+0.50, abyss_col);
+
+                // 側壁 (左右)
+                push_box(verts,idxs, cx-0.48,0.0,zs, cx-0.40,max_h+0.32,zs+0.80, side_col);
+                push_box(verts,idxs, cx+0.40,0.0,zs, cx+0.48,max_h+0.32,zs+0.80, side_col);
+                // 手すりバー
+                push_box(verts,idxs, cx-0.49,max_h+0.28,zs, cx-0.38,max_h+0.36,zs+0.82, rail_col);
+                push_box(verts,idxs, cx+0.38,max_h+0.28,zs, cx+0.49,max_h+0.36,zs+0.82, rail_col);
+                // 柱
+                push_box(verts,idxs, cx-0.48,0.0,zs,       cx-0.40,max_h+0.55,zs+0.06,   rail_col);
+                push_box(verts,idxs, cx-0.48,0.0,zs+0.78,  cx-0.40,max_h+0.55,zs+0.82,   rail_col);
+                push_box(verts,idxs, cx+0.40,0.0,zs,       cx+0.48,max_h+0.55,zs+0.06,   rail_col);
+                push_box(verts,idxs, cx+0.40,0.0,zs+0.78,  cx+0.48,max_h+0.55,zs+0.82,   rail_col);
+
+                // 奈落から沈んでいく靄 (赤)
+                for i in 0..4i32 {
                     let ph = hash + i as f32 * 1.5;
-                    let py = wall_h * 0.3 - ((time*0.8+ph).fract()) * wall_h * 0.3;
-                    let pr = 0.05;
-                    push_box(verts,idxs, cx-pr+0.08,py,cz+pr,cx+pr+0.08,py+0.05,cz+pr*2.0, [0.50,0.10,0.05, pulse*2.0+0.8]);
+                    let py = max_h * 0.2 * (1.0 - (time * 0.8 + ph).fract());
+                    let pr = 0.05_f32;
+                    push_box(verts,idxs, cx-pr,py.max(0.0),cz+0.10, cx+pr,( py+0.06).max(0.01),cz+pr*2.0, glow_col);
                 }
-                if lights.len()<4 { lights.push(Light{pos:[cx,0.1,cz,hash],col:[0.70,0.20,0.10, pulse*2.0+1.0]}); }
+                if lights.len()<4 { lights.push(Light{pos:[cx,0.1,cz,hash],col:[0.75,0.15,0.05, pulse*2.5+1.0]}); }
             }
 
             // モンスター: クロスビルボード (Doomスタイル — どの角度でも見える)
