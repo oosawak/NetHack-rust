@@ -573,11 +573,26 @@ html, body {
     box-shadow: 0 4px 24px rgba(0,170,255,0.35);
     animation: popIn 0.15s ease-out;
 }
+#entity-popup.has-actions { pointer-events: auto; }
 @keyframes popIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 #entity-popup .ep-emoji { font-size: 28px; display: block; text-align: center; margin-bottom: 4px; }
 #entity-popup .ep-title { color: #0ff; font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 6px; }
 #entity-popup .ep-row { color: #aaa; font-size: 11px; margin-top: 2px; }
 #entity-popup .ep-row span { color: #ddd; }
+#ep-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+.ep-act-btn {
+    padding: 5px 10px;
+    border-radius: 7px;
+    border: 2px solid rgba(255,80,80,0.6);
+    background: rgba(60,0,0,0.85);
+    color: #f88;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.ep-act-btn:active { background: rgba(140,20,20,0.9); border-color: #f44; color: #fff; }
+.ep-act-btn.ep-act-look { border-color: rgba(80,180,255,0.5); background: rgba(0,20,50,0.85); color: #8cf; }
 
 /* モバイルナビゲーションバー */
 #nav-bar {
@@ -750,6 +765,7 @@ html, body {
     <div class="ep-title" id="ep-title">Unknown</div>
     <div class="ep-row" id="ep-row1"></div>
     <div class="ep-row" id="ep-row2"></div>
+    <div id="ep-actions"></div>
 </div>
 
 <!-- ミニバー (常時表示) -->
@@ -1520,12 +1536,34 @@ camZone?.addEventListener('touchcancel', () => { camTouchId = null; });
 
 // ━━ エンティティ情報ポップアップ ━━
 const entityPopup = document.getElementById('entity-popup');
-const epEmoji  = document.getElementById('ep-emoji');
-const epTitle  = document.getElementById('ep-title');
-const epRow1   = document.getElementById('ep-row1');
-const epRow2   = document.getElementById('ep-row2');
+const epEmoji    = document.getElementById('ep-emoji');
+const epTitle    = document.getElementById('ep-title');
+const epRow1     = document.getElementById('ep-row1');
+const epRow2     = document.getElementById('ep-row2');
+const epActions  = document.getElementById('ep-actions');
 let popupTimer = null;
 let entityList = []; // { tx, tz, ch } — update3dMap()で更新
+
+// プレイヤー→対象の方向キーを計算 (vi方向キー)
+function dirKeyToward(tx, tz) {
+    const dx = tx - player3dX;
+    const dz = tz - player3dZ;
+    const ax = Math.abs(dx), az = Math.abs(dz);
+    if (ax < 0.5 && az < 0.5) return null; // 同じ位置
+    // 8方向に量子化
+    const angle = Math.atan2(dz, dx); // +z=南, +x=東
+    const sector = Math.round(angle / (Math.PI / 4)); // -4〜4
+    // sector→ vi key: E=0→108(l), NE=-1→117(u), N=-2→107(k), NW=-3or-4→121(y)
+    //                 W=4/-4→104(h), SW=3→98(b), S=2→106(j), SE=1→110(n)
+    const KEY_BY_SECTOR = { 0:108, 1:110, 2:106, 3:98, 4:104, '-1':117, '-2':107, '-3':121, '-4':104 };
+    return KEY_BY_SECTOR[sector] ?? null;
+}
+
+function hideEntityPopup() {
+    entityPopup.style.display = 'none';
+    entityPopup.classList.remove('has-actions');
+    if (popupTimer) { clearTimeout(popupTimer); popupTimer = null; }
+}
 
 const MONSTER_INFO = {
     'a':{ name:'アリ',    en:'ant',       emoji:'🐜' },
@@ -1624,6 +1662,45 @@ function showEntityPopupAtTouch(tx, ty) {
     epRow1.innerHTML  = row1 ? `<span>${row1}</span>` : '';
     epRow2.innerHTML  = row2 ? `<span>${row2}</span>` : '';
 
+    // アクションボタン
+    epActions.innerHTML = '';
+    const isMonster = best.ch !== '@' && best.ch !== '<' && best.ch !== '>' &&
+                      !'$:!?/=%*'.includes(best.ch) && best.ch !== 'd' && best.ch !== 'f';
+    const isDog = best.ch === 'd' || best.ch === 'f';
+    const isItem = '$:!?/=%*'.includes(best.ch);
+    const isStairs = best.ch === '<' || best.ch === '>';
+
+    function makeActBtn(label, cls, onClick) {
+        const b = document.createElement('button');
+        b.className = 'ep-act-btn' + (cls ? ' ' + cls : '');
+        b.textContent = label;
+        b.addEventListener('click', (e) => { e.stopPropagation(); onClick(); hideEntityPopup(); });
+        b.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); onClick(); hideEntityPopup(); });
+        epActions.appendChild(b);
+    }
+
+    if (isMonster) {
+        const dirKey = dirKeyToward(best.tx, best.tz);
+        if (dirKey) {
+            makeActBtn('⚔️ 攻撃', '', () => sendKey(dirKey));
+        }
+        makeActBtn('👁 見る', 'ep-act-look', () => sendKey(58)); // ':' = look
+    } else if (isDog) {
+        makeActBtn('🐾 なでる', 'ep-act-look', () => { /* ペットは攻撃不可 */ });
+    } else if (isItem) {
+        const dirKey = dirKeyToward(best.tx, best.tz);
+        makeActBtn('⬆️ 拾う', 'ep-act-look', () => sendKey(44)); // ','
+    } else if (isStairs) {
+        const key = best.ch === '>' ? 62 : 60;
+        makeActBtn(best.ch === '>' ? '🔽 降りる' : '🔼 昇る', '', () => sendKey(key));
+    }
+
+    if (epActions.children.length > 0) {
+        entityPopup.classList.add('has-actions');
+    } else {
+        entityPopup.classList.remove('has-actions');
+    }
+
     // ポップアップ位置 (タップ点の上に表示, 画面端考慮)
     entityPopup.style.display = 'block';
     const pw = entityPopup.offsetWidth  || 180;
@@ -1636,7 +1713,10 @@ function showEntityPopupAtTouch(tx, ty) {
     entityPopup.style.top  = py + 'px';
 
     if (popupTimer) clearTimeout(popupTimer);
-    popupTimer = setTimeout(() => { entityPopup.style.display = 'none'; }, 3000);
+    // アクションボタンがある場合は自動で消えない
+    if (epActions.children.length === 0) {
+        popupTimer = setTimeout(() => hideEntityPopup(), 3000);
+    }
 }
 
 // canvas タップ (非ジョイスティック側でエンティティ検出)
@@ -1647,11 +1727,10 @@ canvas3d.addEventListener('touchend', (e) => {
     }
 }, { passive: true });
 
-// ポップアップを画面タップで消す
+// ポップアップを画面タップで消す (ポップアップ外タップのみ)
 document.addEventListener('touchstart', (e) => {
-    if (entityPopup.style.display !== 'none') {
-        entityPopup.style.display = 'none';
-        if (popupTimer) { clearTimeout(popupTimer); popupTimer = null; }
+    if (entityPopup.style.display !== 'none' && !entityPopup.contains(e.target)) {
+        hideEntityPopup();
     }
 }, { passive: true });
 
