@@ -90,6 +90,10 @@ pub const TILE_PUDDING:    u8 = 53;
 pub const TILE_ANT:        u8 = 54;
 pub const TILE_GARGOYLE:   u8 = 55;
 pub const TILE_KRAKEN:     u8 = 56;
+pub const TILE_FOUNTAIN:   u8 = 57;
+pub const TILE_ALTAR:      u8 = 58;
+pub const TILE_TRAP:       u8 = 59;
+pub const TILE_PILLAR:     u8 = 60;
 
 /// 1×1×1 ボックスの1面 (quad) を4頂点+6インデックスで追加
 pub fn push_quad(
@@ -106,7 +110,7 @@ pub fn push_quad(
 
 /// タイルが「通行可能」かどうか (床・廊下・プレイヤーなど)
 pub fn is_passable(t: u8) -> bool {
-    matches!(t & 0x3F, TILE_FLOOR|TILE_CORRIDOR|TILE_PLAYER|TILE_STAIRS_U|TILE_STAIRS_D|TILE_MONSTER|TILE_ITEM|TILE_DOG|TILE_CAT|TILE_RAT|TILE_BAT|TILE_SLIME|TILE_ORC|TILE_ZOMBIE|TILE_SNAKE|TILE_EYE|TILE_UNICORN|TILE_TROLL|TILE_DRAGON|TILE_LEPRECHAUN|TILE_KOBOLD|TILE_NYMPH|TILE_VAMPIRE|TILE_LICH|TILE_YETI|TILE_ANGEL|TILE_CENTAUR|TILE_GIANT|TILE_WRAITH|TILE_DEMON|TILE_MUMMY|TILE_VAMP_BAT|TILE_GNOME|TILE_STALKER|TILE_XORN|TILE_MIMIC|TILE_HOBGOBLIN|TILE_RUST_MON|TILE_QUASIT|TILE_GRID_BUG|TILE_GOLEM|TILE_CHEST|TILE_FUNGUS|TILE_HUMANOID|TILE_ELEMENTAL|TILE_SEA_MON|TILE_JELLY|TILE_WORM|TILE_NAGA|TILE_IMP|TILE_PUDDING|TILE_ANT|TILE_GARGOYLE|TILE_KRAKEN)
+    matches!(t & 0x3F, TILE_FLOOR|TILE_CORRIDOR|TILE_PLAYER|TILE_STAIRS_U|TILE_STAIRS_D|TILE_MONSTER|TILE_ITEM|TILE_DOG|TILE_CAT|TILE_RAT|TILE_BAT|TILE_SLIME|TILE_ORC|TILE_ZOMBIE|TILE_SNAKE|TILE_EYE|TILE_UNICORN|TILE_TROLL|TILE_DRAGON|TILE_LEPRECHAUN|TILE_KOBOLD|TILE_NYMPH|TILE_VAMPIRE|TILE_LICH|TILE_YETI|TILE_ANGEL|TILE_CENTAUR|TILE_GIANT|TILE_WRAITH|TILE_DEMON|TILE_MUMMY|TILE_VAMP_BAT|TILE_GNOME|TILE_STALKER|TILE_XORN|TILE_MIMIC|TILE_HOBGOBLIN|TILE_RUST_MON|TILE_QUASIT|TILE_GRID_BUG|TILE_GOLEM|TILE_CHEST|TILE_FUNGUS|TILE_HUMANOID|TILE_ELEMENTAL|TILE_SEA_MON|TILE_JELLY|TILE_WORM|TILE_NAGA|TILE_IMP|TILE_PUDDING|TILE_ANT|TILE_GARGOYLE|TILE_KRAKEN|TILE_FOUNTAIN|TILE_ALTAR|TILE_TRAP|TILE_PILLAR)
 }
 pub fn is_solid(t: u8) -> bool {
     let b = t & 0x3F;
@@ -323,6 +327,134 @@ pub fn build_dungeon(
                 }
             }
 
+            // ━━ 扉 (TILE_DOOR): 木の扉・石のフレーム・金属の金具 ━━
+            if base_t == TILE_DOOR {
+                let cx=(x0+x1)*0.5; let cz=(z0+z1)*0.5;
+                let hash=(tx*11+ty*13) as f32;
+                // 扉の向き: 東西にパッセージがあれば横向き、それ以外は縦向き
+                let ns_pass = is_passable(get_tile(tiles,w,h,tx as i32,ty as i32-1))
+                           || is_passable(get_tile(tiles,w,h,tx as i32,ty as i32+1));
+                let ew_pass = is_passable(get_tile(tiles,w,h,tx as i32-1,ty as i32))
+                           || is_passable(get_tile(tiles,w,h,tx as i32+1,ty as i32));
+                let (dw, dd) = if ew_pass && !ns_pass { (0.44_f32, 0.06_f32) } else { (0.06_f32, 0.44_f32) };
+                // 石のフレーム（左右の柱）
+                let frame_col = [0.38_f32,0.34,0.30,1.0];
+                let wood_col  = [0.48_f32,0.28,0.10,1.0];
+                let plank_col = [0.40_f32,0.24,0.08,1.0];
+                let metal_col = [0.60_f32,0.55,0.20,1.0];
+                // フレーム上下
+                push_box(verts,idxs, cx-dw-0.08,0.0,cz-dd-0.08, cx+dw+0.08,0.06,cz+dd+0.08, frame_col);
+                push_box(verts,idxs, cx-dw-0.08,wall_h-0.08,cz-dd-0.08, cx+dw+0.08,wall_h,cz+dd+0.08, frame_col);
+                // フレーム横柱（左右）
+                push_box(verts,idxs, cx-dw-0.08,0.0,cz-dd-0.08, cx-dw,wall_h,cz+dd+0.08, frame_col);
+                push_box(verts,idxs, cx+dw,0.0,cz-dd-0.08, cx+dw+0.08,wall_h,cz+dd+0.08, frame_col);
+                // 扉本体（木の板）
+                push_box(verts,idxs, cx-dw,0.04,cz-dd, cx+dw,wall_h-0.06,cz+dd, wood_col);
+                // 板の縦筋（3本）
+                for pi in 0..3i32 {
+                    let px2 = if ew_pass {
+                        cx - 0.30 + pi as f32 * 0.28
+                    } else {
+                        cx - 0.015
+                    };
+                    let pz2 = if ew_pass {
+                        cz - 0.015
+                    } else {
+                        cz - 0.30 + pi as f32 * 0.28
+                    };
+                    if ew_pass {
+                        push_box(verts,idxs, px2-0.02,0.04,cz-dd-0.01, px2+0.02,wall_h-0.06,cz+dd+0.01, plank_col);
+                    } else {
+                        push_box(verts,idxs, cx-dd-0.01,0.04,pz2-0.02, cx+dd+0.01,wall_h-0.06,pz2+0.02, plank_col);
+                    }
+                }
+                // 蝶番（上下2つ）
+                let hinge_y = [0.25_f32, wall_h-0.40];
+                for &hy in &hinge_y {
+                    push_box(verts,idxs, cx-dw-0.02,hy,cz-dd-0.02, cx-dw+0.02,hy+0.12,cz+dd+0.02, metal_col);
+                }
+                // ドアノブ（光る）
+                let knob_pulse = (time*2.0+hash).sin()*0.3+0.7_f32;
+                push_box(verts,idxs, cx+dw-0.06,wall_h*0.46,cz-dd-0.02, cx+dw+0.02,wall_h*0.54,cz+dd+0.02, [0.85,0.75,0.15, knob_pulse*2.0+0.8]);
+                if lights.len()<4 { lights.push(Light{pos:[cx,wall_h*0.5,cz,hash],col:[0.80,0.55,0.20,knob_pulse*1.5+0.5]}); }
+            }
+
+            // ━━ 上り階段 (TILE_STAIRS_U): 石の段・上方向矢印の光 ━━
+            if base_t == TILE_STAIRS_U {
+                let cx=(x0+x1)*0.5; let cz=(z0+z1)*0.5;
+                let hash=(tx*13+ty*7) as f32;
+                let pulse=(time*1.5+hash).sin()*0.5+0.5_f32;
+                let stone_col = [0.38_f32,0.36,0.32,1.0];
+                let edge_col  = [0.48_f32,0.46,0.42,1.0];
+                let arrow_col = [0.30_f32,0.80,0.40, pulse*2.5+1.0];
+                // 4段の石段（奥から手前に低くなる）
+                let steps = 4;
+                for si in 0..steps {
+                    let sf = si as f32;
+                    let step_h = (steps - si) as f32 * (wall_h * 0.18);
+                    let step_z0 = cz - 0.44 + sf*0.22;
+                    let step_z1 = step_z0 + 0.22;
+                    // 段面
+                    push_box(verts,idxs, cx-0.44,0.0,step_z0, cx+0.44,step_h,step_z1, stone_col);
+                    // 段の前エッジ（明るい）
+                    push_box(verts,idxs, cx-0.44,step_h-0.03,step_z0, cx+0.44,step_h+0.01,step_z0+0.04, edge_col);
+                }
+                // 側壁（左右の石）
+                push_box(verts,idxs, cx-0.48,0.0,cz-0.44, cx-0.42,wall_h*0.72,cz+0.44, stone_col);
+                push_box(verts,idxs, cx+0.42,0.0,cz-0.44, cx+0.48,wall_h*0.72,cz+0.44, stone_col);
+                // 上方向の矢印マーカー（床面に発光）
+                push_box(verts,idxs, cx-0.06,0.01,cz-0.18, cx+0.06,0.03,cz+0.10, arrow_col);
+                push_box(verts,idxs, cx-0.14,0.01,cz-0.06, cx+0.14,0.03,cz+0.06, arrow_col);
+                // 矢印先端（三角形）
+                push_box(verts,idxs, cx-0.10,0.01,cz-0.30, cx+0.10,0.03,cz-0.10, arrow_col);
+                // 浮かぶ光の粒（上昇アニメ）
+                for i in 0..3i32 {
+                    let ph = hash + i as f32 * 1.2;
+                    let py = ((time*1.2+ph).fract()) * wall_h;
+                    let pr = 0.04;
+                    push_box(verts,idxs, cx-pr,py,cz-pr, cx+pr,py+0.06,cz+pr, [0.40,0.95,0.50, pulse*3.0+1.5]);
+                }
+                if lights.len()<4 { lights.push(Light{pos:[cx,0.3,cz,hash],col:[0.30,0.90,0.40, pulse*3.0+1.5]}); }
+            }
+
+            // ━━ 下り階段 (TILE_STAIRS_D): 暗い石段・奈落への光 ━━
+            if base_t == TILE_STAIRS_D {
+                let cx=(x0+x1)*0.5; let cz=(z0+z1)*0.5;
+                let hash=(tx*17+ty*11) as f32;
+                let pulse=(time*1.2+hash).sin()*0.5+0.5_f32;
+                let stone_col = [0.28_f32,0.26,0.24,1.0];
+                let edge_col  = [0.20_f32,0.18,0.16,1.0]; // 暗いエッジ
+                let abyss_col = [0.05_f32,0.05,0.08,1.0]; // 奈落の暗闇
+                let arrow_col = [0.75_f32,0.25,0.15, pulse*2.5+1.0]; // 赤い下降矢印
+                // 手前から奥に下がる4段
+                let steps = 4;
+                for si in 0..steps {
+                    let sf = si as f32;
+                    let step_h = sf * (wall_h * 0.18);
+                    let step_z0 = cz - 0.44 + sf*0.22;
+                    let step_z1 = step_z0 + 0.22;
+                    push_box(verts,idxs, cx-0.44,0.0,step_z0, cx+0.44,step_h,step_z1, stone_col);
+                    push_box(verts,idxs, cx-0.44,step_h-0.03,step_z1-0.04, cx+0.44,step_h+0.01,step_z1, edge_col);
+                }
+                // 奈落の穴（最深部）
+                push_box(verts,idxs, cx-0.36,0.0,cz+0.10, cx+0.36,0.02,cz+0.44, abyss_col);
+                // 側壁（左右）
+                push_box(verts,idxs, cx-0.48,0.0,cz-0.44, cx-0.42,wall_h*0.72,cz+0.44, stone_col);
+                push_box(verts,idxs, cx+0.42,0.0,cz-0.44, cx+0.48,wall_h*0.72,cz+0.44, stone_col);
+                // 下降矢印（床面）
+                push_box(verts,idxs, cx-0.06,0.01,cz-0.10, cx+0.06,0.03,cz+0.18, arrow_col);
+                push_box(verts,idxs, cx-0.14,0.01,cz-0.06, cx+0.14,0.03,cz+0.06, arrow_col);
+                push_box(verts,idxs, cx-0.10,0.01,cz+0.10, cx+0.10,0.03,cz+0.30, arrow_col);
+                // 奈落から湧き上がる暗い靄（下降するパーティクル）
+                for i in 0..3i32 {
+                    let ph = hash + i as f32 * 1.5;
+                    let py = wall_h * 0.3 - ((time*0.8+ph).fract()) * wall_h * 0.3;
+                    let pr = 0.05;
+                    push_box(verts,idxs, cx-pr+0.08,py,cz+pr,cx+pr+0.08,py+0.05,cz+pr*2.0, [0.50,0.10,0.05, pulse*2.0+0.8]);
+                }
+                if lights.len()<4 { lights.push(Light{pos:[cx,0.1,cz,hash],col:[0.70,0.20,0.10, pulse*2.0+1.0]}); }
+            }
+
             // モンスター: クロスビルボード (Doomスタイル — どの角度でも見える)
             if base_t == TILE_MONSTER {
                 let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
@@ -365,148 +497,107 @@ pub fn build_dungeon(
                 let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
                 let hash = (tx * 13 + ty * 7) as f32;
 
-                // ── サイズバリエーション (位置ハッシュ×tierで決定) ──
-                let size_var = (tx * 5 + ty * 3) % 3; // 0=小型, 1=中型, 2=大型
-                let sc = tier_base * match size_var {
-                    0 => 0.60_f32, // 小さな子犬
-                    1 => 0.85_f32, // 普通の犬
-                    _ => 1.10_f32, // 大きな犬
-                };
+                let size_var = (tx * 5 + ty * 3) % 3;
+                let sc = tier_base * match size_var { 0 => 0.60_f32, 1 => 0.85_f32, _ => 1.10_f32 };
 
-                // ── カラーバリエーション (毛色5種) ──
                 let fur = match (tx * 7 + ty * 11) % 5 {
-                    0 => [0.82, 0.62, 0.28, 1.0_f32], // 茶色
-                    1 => [0.92, 0.88, 0.75, 1.0_f32], // クリーム/白
-                    2 => [0.22, 0.18, 0.12, 1.0_f32], // 黒
-                    3 => [0.65, 0.38, 0.18, 1.0_f32], // 濃い茶
-                    _ => [0.75, 0.72, 0.65, 1.0_f32], // グレー
+                    0 => [0.82, 0.62, 0.28, 1.0_f32],
+                    1 => [0.92, 0.88, 0.75, 1.0_f32],
+                    2 => [0.22, 0.18, 0.12, 1.0_f32],
+                    3 => [0.65, 0.38, 0.18, 1.0_f32],
+                    _ => [0.75, 0.72, 0.65, 1.0_f32],
                 };
-                // 腹側はすこし明るく
-                let belly = [fur[0]*1.25, fur[1]*1.25, fur[2]*1.25, fur[3]];
-                // 鼻・口は黒っぽく
-                let nose_col  = [0.15, 0.10, 0.08, 1.0_f32];
-                // 目は黒 + 光点 (emissive)
-                let eye_col   = [0.08, 0.06, 0.04, 3.0_f32];
-                let eye_shine = [1.0,  1.0,  0.9,  3.0_f32];
+                let belly    = [fur[0]*1.25, fur[1]*1.25, fur[2]*1.25, fur[3]];
+                let nose_col = [0.15, 0.10, 0.08, 1.0_f32];
+                let eye_col  = [0.08, 0.06, 0.04, 3.0_f32];
+                let eye_shine= [1.0,  1.0,  0.9,  3.0_f32];
 
-                // ── アニメーション ──
-                // 全体を少しバウンドさせる (4足なので細かく)
-                let walk = (time * 3.8 + hash * 0.4).sin();
-                let base_y = (time * 7.5 + hash * 0.4).sin().abs() * 0.018 * sc; // 4足歩行リズム
-                // しっぽを左右に振る
-                let wag = (time * 6.0 + hash * 0.8).sin();
+                let walk   = (time * 3.8 + hash * 0.4).sin();
+                let base_y = (time * 7.5 + hash * 0.4).sin().abs() * 0.018 * sc;
+                let wag    = (time * 6.0 + hash * 0.8).sin();
 
-                // スケール済み寸法
-                let bw = 0.18 * sc; // 胴体 X 半幅
-                let bd = 0.10 * sc; // 胴体 Z 半幅
-                let by0 = 0.16 * sc + base_y; // 胴体底
-                let by1 = 0.30 * sc + base_y; // 胴体天
-                // 胴体を前後に伸ばす
-                let bfr = 0.22 * sc; // 前方 (+Z)
-                let bbk = 0.22 * sc; // 後方 (-Z)
+                // ── プレイヤー方向を向く ──
+                let face_angle = (pz - cz).atan2(px - cx);
+                let rot = face_angle - std::f32::consts::FRAC_PI_2;
+                let (sr, cr) = rot.sin_cos();
+                let rp = |lx: f32, lz: f32| -> (f32, f32) {
+                    (cx + lx * cr - lz * sr, cz + lx * sr + lz * cr)
+                };
+                macro_rules! pb {
+                    ($lx0:expr,$y0:expr,$lz0:expr,$lx1:expr,$y1:expr,$lz1:expr,$col:expr) => {{
+                        let (wx0,wz0)=rp($lx0,$lz0); let (wx1,wz1)=rp($lx1,$lz1);
+                        let (wx2,wz2)=rp($lx0,$lz1); let (wx3,wz3)=rp($lx1,$lz0);
+                        push_box(verts,idxs,
+                            wx0.min(wx1).min(wx2).min(wx3),$y0,wz0.min(wz1).min(wz2).min(wz3),
+                            wx0.max(wx1).max(wx2).max(wx3),$y1,wz0.max(wz1).max(wz2).max(wz3),$col);
+                    }};
+                }
 
-                // ── 胴体 ──
-                push_box(verts, idxs,
-                    cx-bw, by0, cz-bbk,
-                    cx+bw, by1, cz+bfr, fur);
+                let bw  = 0.18 * sc;
+                let by0 = 0.16 * sc + base_y;
+                let by1 = 0.30 * sc + base_y;
+                let bfr = 0.22 * sc;
+                let bbk = 0.22 * sc;
 
-                // ── 頭 (前方やや上) ──
-                let hx = 0.13 * sc; // 頭 X 半幅
-                let hz = 0.12 * sc; // 頭 Z 半幅 (奥行き)
+                // 胴体
+                pb!(-bw, by0, -bbk, bw, by1, bfr, fur);
+
+                // 頭
+                let hx  = 0.13 * sc;
+                let hz  = 0.12 * sc;
                 let hy0 = by1 - 0.04 * sc;
                 let hy1 = hy0 + 0.22 * sc;
-                let hcz = cz + bfr + hz * 0.6; // 頭の中心 Z
-                push_box(verts, idxs,
-                    cx-hx, hy0, hcz-hz,
-                    cx+hx, hy1, hcz+hz*0.5, fur);
+                let hfz = bfr + hz * 0.6;
+                pb!(-hx, hy0, hfz-hz, hx, hy1, hfz+hz*0.5, fur);
 
-                // ── 鼻 (頭の前面中央) ──
-                let nw = 0.055 * sc;
-                let nh = 0.045 * sc;
-                let nd = 0.04 * sc;
+                // 鼻
+                let nw  = 0.055 * sc;
+                let nh  = 0.045 * sc;
+                let nd  = 0.04  * sc;
                 let ny0 = hy0 + (hy1-hy0)*0.28;
-                push_box(verts, idxs,
-                    cx-nw, ny0, hcz+hz*0.5,
-                    cx+nw, ny0+nh, hcz+hz*0.5+nd, nose_col);
+                pb!(-nw, ny0, hfz+hz*0.5, nw, ny0+nh, hfz+hz*0.5+nd, nose_col);
 
-                // ── 耳 (2枚, 頭の上に薄い板) ──
-                let ew = 0.055 * sc;
-                let eh = 0.09 * sc;
-                let ed = 0.025 * sc; // 耳の厚み
-                let earz = hcz - hz * 0.1;
-                let eary0 = hy1;
-                // 耳の色は少し暗め
+                // 耳
+                let ew      = 0.055 * sc;
+                let eh      = 0.09  * sc;
+                let ed      = 0.025 * sc;
+                let earz_l  = hfz - hz * 0.1;
                 let ear_col = [fur[0]*0.8, fur[1]*0.7, fur[2]*0.7, fur[3]];
-                // 左耳 (すこし外に傾けるため X をずらす)
-                push_box(verts, idxs,
-                    cx - hx*0.9 - ew, eary0, earz-ed,
-                    cx - hx*0.9,      eary0+eh, earz+ed, ear_col);
-                // 右耳
-                push_box(verts, idxs,
-                    cx + hx*0.9,      eary0, earz-ed,
-                    cx + hx*0.9 + ew, eary0+eh, earz+ed, ear_col);
+                pb!(-hx*0.9-ew, hy1, earz_l-ed, -hx*0.9, hy1+eh, earz_l+ed, ear_col);
+                pb!( hx*0.9,    hy1, earz_l-ed,  hx*0.9+ew, hy1+eh, earz_l+ed, ear_col);
 
-                // ── 目 2個 ──
+                // 目
                 let ex_off = hx * 0.52;
                 let ey_h   = hy0 + (hy1-hy0)*0.62;
-                let ez_f   = hcz + hz * 0.45;
-                let esz    = 0.03 * sc; // 目のサイズ
-                // 左目
-                push_box(verts, idxs,
-                    cx-ex_off-esz, ey_h-esz, ez_f,
-                    cx-ex_off+esz, ey_h+esz, ez_f+esz*0.6, eye_col);
-                push_box(verts, idxs, // ハイライト
-                    cx-ex_off, ey_h+esz*0.3, ez_f+esz*0.55,
-                    cx-ex_off+esz*0.5, ey_h+esz*0.8, ez_f+esz*0.7, eye_shine);
-                // 右目
-                push_box(verts, idxs,
-                    cx+ex_off-esz, ey_h-esz, ez_f,
-                    cx+ex_off+esz, ey_h+esz, ez_f+esz*0.6, eye_col);
-                push_box(verts, idxs,
-                    cx+ex_off, ey_h+esz*0.3, ez_f+esz*0.55,
-                    cx+ex_off+esz*0.5, ey_h+esz*0.8, ez_f+esz*0.7, eye_shine);
+                let ezf_l  = hfz + hz * 0.45;
+                let esz    = 0.03 * sc;
+                pb!(-ex_off-esz, ey_h-esz, ezf_l, -ex_off+esz, ey_h+esz, ezf_l+esz*0.6, eye_col);
+                pb!(-ex_off, ey_h+esz*0.3, ezf_l+esz*0.55, -ex_off+esz*0.5, ey_h+esz*0.8, ezf_l+esz*0.7, eye_shine);
+                pb!( ex_off-esz, ey_h-esz, ezf_l,  ex_off+esz, ey_h+esz, ezf_l+esz*0.6, eye_col);
+                pb!( ex_off, ey_h+esz*0.3, ezf_l+esz*0.55,  ex_off+esz*0.5, ey_h+esz*0.8, ezf_l+esz*0.7, eye_shine);
 
-                // ── 4本脚 ──
-                let lw = 0.055 * sc; // 脚の半幅
-                let lh = by0;        // 脚の高さ (地面〜胴体底)
-                let leg_col = [fur[0]*0.88, fur[1]*0.88, fur[2]*0.88, fur[3]];
-                // 前脚は歩行アニメ (左右逆位相)
+                // 4本脚
+                let lw          = 0.055 * sc;
+                let lh          = by0;
+                let leg_col     = [fur[0]*0.88, fur[1]*0.88, fur[2]*0.88, fur[3]];
                 let leg_front_y = lh * (1.0 + walk * 0.06);
                 let leg_back_y  = lh * (1.0 - walk * 0.06);
-                // 前左脚
-                push_box(verts, idxs,
-                    cx-bw+lw*0.3, 0.0, cz+bfr-lw*2.0-lw*0.5,
-                    cx-bw+lw*0.3+lw*2.0, leg_front_y, cz+bfr-lw*0.5, leg_col);
-                // 前右脚
-                push_box(verts, idxs,
-                    cx+bw-lw*0.3-lw*2.0, 0.0, cz+bfr-lw*2.0-lw*0.5,
-                    cx+bw-lw*0.3, leg_back_y, cz+bfr-lw*0.5, leg_col);
-                // 後左脚
-                push_box(verts, idxs,
-                    cx-bw+lw*0.3, 0.0, cz-bbk+lw*0.5,
-                    cx-bw+lw*0.3+lw*2.0, leg_back_y, cz-bbk+lw*0.5+lw*2.0, leg_col);
-                // 後右脚
-                push_box(verts, idxs,
-                    cx+bw-lw*0.3-lw*2.0, 0.0, cz-bbk+lw*0.5,
-                    cx+bw-lw*0.3, leg_front_y, cz-bbk+lw*0.5+lw*2.0, leg_col);
+                pb!(-bw+lw*0.3,      0.0, bfr-lw*2.5, -bw+lw*0.3+lw*2.0, leg_front_y, bfr-lw*0.5, leg_col);
+                pb!( bw-lw*0.3-lw*2.0, 0.0, bfr-lw*2.5,  bw-lw*0.3,       leg_back_y,  bfr-lw*0.5, leg_col);
+                pb!(-bw+lw*0.3,      0.0, -bbk+lw*0.5, -bw+lw*0.3+lw*2.0, leg_back_y, -bbk+lw*0.5+lw*2.0, leg_col);
+                pb!( bw-lw*0.3-lw*2.0, 0.0, -bbk+lw*0.5,  bw-lw*0.3,       leg_front_y, -bbk+lw*0.5+lw*2.0, leg_col);
 
-                // ── しっぽ (後方, 左右に振る) ──
-                let tail_x = cx + wag * 0.13 * sc;
-                let tail_y0 = by1 * 0.7;
-                let tail_y1 = by1 * 0.7 + 0.22 * sc;
-                let tail_z0 = cz - bbk - 0.14 * sc;
-                let tail_z1 = cz - bbk - 0.02 * sc;
+                // しっぽ
+                let tlx = wag * 0.13 * sc;
+                let ty0 = by1 * 0.7;
+                let ty1 = ty0 + 0.22 * sc;
+                let tlz0 = -bbk - 0.14 * sc;
+                let tlz1 = -bbk - 0.02 * sc;
                 let tail_col = [fur[0]*0.92, fur[1]*0.78, fur[2]*0.65, fur[3]];
-                push_box(verts, idxs,
-                    tail_x - 0.03*sc, tail_y0, tail_z0,
-                    tail_x + 0.03*sc, tail_y1, tail_z1, tail_col);
+                pb!(tlx-0.03*sc, ty0, tlz0, tlx+0.03*sc, ty1, tlz1, tail_col);
 
-                // ── フレンドリーな暖色ライト ──
                 if lights.len() < 4 {
-                    lights.push(Light {
-                        pos: [cx, by1, cz, hash],
-                        col: [1.0, 0.80, 0.40, 1.2 * sc],
-                    });
+                    lights.push(Light { pos:[cx, by1, cz, hash], col:[1.0, 0.80, 0.40, 1.2*sc] });
                 }
             }
 
@@ -515,184 +606,131 @@ pub fn build_dungeon(
                 let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
                 let hash = (tx * 17 + ty * 11) as f32;
 
-                // ── サイズ (猫は全体的にスリム、tier倍率適用) ──
-                let sc = tier_base * match (tx * 5 + ty * 3) % 3 {
-                    0 => 0.55_f32, // 子猫
-                    1 => 0.75_f32, // 普通
-                    _ => 0.90_f32, // 大きめ
-                };
+                let sc = tier_base * match (tx * 5 + ty * 3) % 3 { 0 => 0.55_f32, 1 => 0.75_f32, _ => 0.90_f32 };
 
-                // ── 毛色5種 ──
                 let fur: [f32;4] = match (tx * 11 + ty * 7) % 5 {
-                    0 => [0.92, 0.50, 0.14, 1.0], // オレンジタビー
-                    1 => [0.10, 0.08, 0.09, 1.0], // 黒猫
-                    2 => [0.96, 0.94, 0.91, 1.0], // 白猫
-                    3 => [0.56, 0.53, 0.48, 1.0], // グレー縞
-                    _ => [0.72, 0.40, 0.14, 1.0], // 茶トラ
+                    0 => [0.92, 0.50, 0.14, 1.0],
+                    1 => [0.10, 0.08, 0.09, 1.0],
+                    2 => [0.96, 0.94, 0.91, 1.0],
+                    3 => [0.56, 0.53, 0.48, 1.0],
+                    _ => [0.72, 0.40, 0.14, 1.0],
                 };
-                let belly = [(fur[0]*1.3).min(1.0), (fur[1]*1.3).min(1.0), (fur[2]*1.3).min(1.0), 1.0];
-                let ear_in  = [0.92_f32, 0.55, 0.58, 1.0]; // 耳内側ピンク
-                let ear_out = [fur[0]*0.82, fur[1]*0.72, fur[2]*0.72, 1.0];
-                let pink    = [0.95_f32, 0.65, 0.68, 1.0]; // 鼻・肉球ピンク
-                let wh_col  = [0.96_f32, 0.96, 0.96, 1.0]; // ひげ
-                // 目: 色付き虹彩・黒瞳・強ハイライト
+                let belly     = [(fur[0]*1.3).min(1.0), (fur[1]*1.3).min(1.0), (fur[2]*1.3).min(1.0), 1.0];
+                let ear_in    = [0.92_f32, 0.55, 0.58, 1.0];
+                let ear_out   = [fur[0]*0.82, fur[1]*0.72, fur[2]*0.72, 1.0];
+                let pink      = [0.95_f32, 0.65, 0.68, 1.0];
+                let wh_col    = [0.96_f32, 0.96, 0.96, 1.0];
                 let eye_iris: [f32;4] = match (tx * 3 + ty * 5) % 3 {
-                    0 => [0.18, 0.72, 0.28, 3.0], // 翠の目
-                    1 => [0.82, 0.58, 0.08, 3.0], // 金の目
-                    _ => [0.12, 0.42, 0.78, 3.0], // 青い目
+                    0 => [0.18, 0.72, 0.28, 3.0],
+                    1 => [0.82, 0.58, 0.08, 3.0],
+                    _ => [0.12, 0.42, 0.78, 3.0],
                 };
                 let eye_col   = [0.06_f32, 0.04, 0.07, 3.0];
-                let eye_shine = [1.0_f32,  0.98, 0.95, 4.0]; // 強エミッシブ
+                let eye_shine = [1.0_f32,  0.98, 0.95, 4.0];
 
-                // ── アニメーション ──
                 let walk      = (time * 4.0 + hash * 0.4).sin();
                 let base_y    = (time * 8.0 + hash * 0.5).sin().abs() * 0.012 * sc;
                 let tail_sway = (time * 2.5 + hash * 0.6).sin();
 
-                // ── 胴体 (スリム) ──
-                let bw = 0.13 * sc;
+                // ── プレイヤー方向を向く ──
+                let face_angle = (pz - cz).atan2(px - cx);
+                let rot = face_angle - std::f32::consts::FRAC_PI_2;
+                let (sr, cr) = rot.sin_cos();
+                let rp = |lx: f32, lz: f32| -> (f32, f32) {
+                    (cx + lx * cr - lz * sr, cz + lx * sr + lz * cr)
+                };
+                macro_rules! pb {
+                    ($lx0:expr,$y0:expr,$lz0:expr,$lx1:expr,$y1:expr,$lz1:expr,$col:expr) => {{
+                        let (wx0,wz0)=rp($lx0,$lz0); let (wx1,wz1)=rp($lx1,$lz1);
+                        let (wx2,wz2)=rp($lx0,$lz1); let (wx3,wz3)=rp($lx1,$lz0);
+                        push_box(verts,idxs,
+                            wx0.min(wx1).min(wx2).min(wx3),$y0,wz0.min(wz1).min(wz2).min(wz3),
+                            wx0.max(wx1).max(wx2).max(wx3),$y1,wz0.max(wz1).max(wz2).max(wz3),$col);
+                    }};
+                }
+
+                let bw  = 0.13 * sc;
                 let by0 = 0.13 * sc + base_y;
                 let by1 = 0.25 * sc + base_y;
                 let bfr = 0.19 * sc;
                 let bbk = 0.19 * sc;
-                push_box(verts, idxs, cx-bw, by0, cz-bbk, cx+bw, by1, cz+bfr, fur);
-                // お腹ハイライト
-                push_box(verts, idxs,
-                    cx-bw*0.75, by0, cz-bbk*0.6,
-                    cx+bw*0.75, by0+0.008, cz+bfr*0.6, belly);
 
-                // ── 頭 (丸く大きめ) ──
-                let hx = 0.125 * sc;
-                let hz = 0.105 * sc;
+                // 胴体
+                pb!(-bw, by0, -bbk, bw, by1, bfr, fur);
+                pb!(-bw*0.75, by0, -bbk*0.6, bw*0.75, by0+0.008, bfr*0.6, belly);
+
+                // 頭
+                let hx  = 0.125 * sc;
+                let hz  = 0.105 * sc;
                 let hy0 = by1 - 0.018 * sc;
                 let hy1 = hy0 + 0.195 * sc;
-                let hcz = cz + bfr + hz * 0.45;
-                push_box(verts, idxs, cx-hx, hy0, hcz-hz, cx+hx, hy1, hcz+hz*0.45, fur);
+                let hfz = bfr + hz * 0.45;
+                pb!(-hx, hy0, hfz-hz, hx, hy1, hfz+hz*0.45, fur);
 
-                // ── 耳 (尖った縦長ボックス + ピンク内側) ──
-                let ew = 0.042 * sc;
-                let eh = 0.115 * sc; // 犬より高く尖る
-                let ez  = hcz - hz * 0.5;
+                // 耳
+                let ew  = 0.042 * sc;
+                let eh  = 0.115 * sc;
+                let ez_l = hfz - hz * 0.5;
                 let ey0 = hy1 - 0.01 * sc;
-                // 左耳
-                push_box(verts, idxs,
-                    cx - hx*0.72 - ew, ey0, ez - ew,
-                    cx - hx*0.72,      ey0 + eh, ez + ew, ear_out);
-                push_box(verts, idxs, // 内側ピンク
-                    cx - hx*0.72 - ew*0.55, ey0 + eh*0.15, ez - ew*0.25,
-                    cx - hx*0.72 - ew*0.05, ey0 + eh*0.82, ez + ew*0.25, ear_in);
-                // 右耳
-                push_box(verts, idxs,
-                    cx + hx*0.72,      ey0, ez - ew,
-                    cx + hx*0.72 + ew, ey0 + eh, ez + ew, ear_out);
-                push_box(verts, idxs,
-                    cx + hx*0.72 + ew*0.05, ey0 + eh*0.15, ez - ew*0.25,
-                    cx + hx*0.72 + ew*0.55, ey0 + eh*0.82, ez + ew*0.25, ear_in);
+                pb!(-hx*0.72-ew, ey0, ez_l-ew, -hx*0.72, ey0+eh, ez_l+ew, ear_out);
+                pb!(-hx*0.72-ew*0.55, ey0+eh*0.15, ez_l-ew*0.25, -hx*0.72-ew*0.05, ey0+eh*0.82, ez_l+ew*0.25, ear_in);
+                pb!( hx*0.72, ey0, ez_l-ew,  hx*0.72+ew, ey0+eh, ez_l+ew, ear_out);
+                pb!( hx*0.72+ew*0.05, ey0+eh*0.15, ez_l-ew*0.25,  hx*0.72+ew*0.55, ey0+eh*0.82, ez_l+ew*0.25, ear_in);
 
-                // ── 鼻 (小さいピンク) ──
-                let nw = 0.028 * sc;
-                let nh = 0.022 * sc;
+                // 鼻
+                let nw  = 0.028 * sc;
+                let nh  = 0.022 * sc;
                 let ny0 = hy0 + (hy1-hy0)*0.30;
-                push_box(verts, idxs,
-                    cx-nw, ny0, hcz+hz*0.38,
-                    cx+nw, ny0+nh, hcz+hz*0.38+0.028*sc, pink);
+                pb!(-nw, ny0, hfz+hz*0.38, nw, ny0+nh, hfz+hz*0.38+0.028*sc, pink);
 
-                // ── ひげ (水平に伸びる細いボックス、左右各2本) ──
-                let wy  = ny0 + nh*0.4;
-                let wtk = 0.005 * sc; // 太さ
-                let wlen = 0.13 * sc;
-                // 左2本
-                push_box(verts, idxs,
-                    cx - hx - wlen, wy + nh*0.5, hcz+hz*0.25,
-                    cx - hx*0.05,   wy + nh*0.5 + wtk, hcz+hz*0.25+wtk, wh_col);
-                push_box(verts, idxs,
-                    cx - hx - wlen, wy - nh*0.1, hcz+hz*0.25,
-                    cx - hx*0.05,   wy - nh*0.1 + wtk, hcz+hz*0.25+wtk, wh_col);
-                // 右2本
-                push_box(verts, idxs,
-                    cx + hx*0.05, wy + nh*0.5, hcz+hz*0.25,
-                    cx + hx + wlen, wy + nh*0.5 + wtk, hcz+hz*0.25+wtk, wh_col);
-                push_box(verts, idxs,
-                    cx + hx*0.05, wy - nh*0.1, hcz+hz*0.25,
-                    cx + hx + wlen, wy - nh*0.1 + wtk, hcz+hz*0.25+wtk, wh_col);
+                // ひげ (ローカルX方向に伸びる)
+                let wy   = ny0 + nh*0.4;
+                let wtk  = 0.005 * sc;
+                let wlen = 0.13  * sc;
+                pb!(-hx-wlen, wy+nh*0.5, hfz+hz*0.25, -hx*0.05, wy+nh*0.5+wtk, hfz+hz*0.25+wtk, wh_col);
+                pb!(-hx-wlen, wy-nh*0.1, hfz+hz*0.25, -hx*0.05, wy-nh*0.1+wtk, hfz+hz*0.25+wtk, wh_col);
+                pb!( hx*0.05, wy+nh*0.5, hfz+hz*0.25,  hx+wlen, wy+nh*0.5+wtk, hfz+hz*0.25+wtk, wh_col);
+                pb!( hx*0.05, wy-nh*0.1, hfz+hz*0.25,  hx+wlen, wy-nh*0.1+wtk, hfz+hz*0.25+wtk, wh_col);
 
-                // ── 目 (猫の命! 大きく・虹彩・瞳孔・ハイライト2点) ──
+                // 目
                 let ex_off = hx * 0.45;
                 let eyz    = hy0 + (hy1-hy0)*0.57;
-                let ezf    = hcz + hz * 0.38;
-                let es     = 0.044 * sc; // 犬より大きい!
-                // 左目: 虹彩→縦瞳孔→ハイライト×2
-                push_box(verts, idxs,
-                    cx-ex_off-es, eyz-es*0.92, ezf,
-                    cx-ex_off+es, eyz+es*0.92, ezf+es*0.45, eye_iris);
-                push_box(verts, idxs, // 縦長瞳孔
-                    cx-ex_off-es*0.28, eyz-es*0.88, ezf+0.001,
-                    cx-ex_off+es*0.28, eyz+es*0.88, ezf+es*0.5, eye_col);
-                push_box(verts, idxs, // メインハイライト
-                    cx-ex_off+es*0.12, eyz+es*0.22, ezf+es*0.42,
-                    cx-ex_off+es*0.72, eyz+es*0.80, ezf+es*0.58, eye_shine);
-                push_box(verts, idxs, // サブハイライト
-                    cx-ex_off-es*0.52, eyz-es*0.08, ezf+es*0.42,
-                    cx-ex_off-es*0.10, eyz+es*0.30, ezf+es*0.58, eye_shine);
-                // 右目
-                push_box(verts, idxs,
-                    cx+ex_off-es, eyz-es*0.92, ezf,
-                    cx+ex_off+es, eyz+es*0.92, ezf+es*0.45, eye_iris);
-                push_box(verts, idxs,
-                    cx+ex_off-es*0.28, eyz-es*0.88, ezf+0.001,
-                    cx+ex_off+es*0.28, eyz+es*0.88, ezf+es*0.5, eye_col);
-                push_box(verts, idxs,
-                    cx+ex_off-es*0.72, eyz+es*0.22, ezf+es*0.42,
-                    cx+ex_off-es*0.12, eyz+es*0.80, ezf+es*0.58, eye_shine);
-                push_box(verts, idxs,
-                    cx+ex_off+es*0.10, eyz-es*0.08, ezf+es*0.42,
-                    cx+ex_off+es*0.52, eyz+es*0.30, ezf+es*0.58, eye_shine);
+                let ezf    = hfz + hz * 0.38;
+                let es     = 0.044 * sc;
+                pb!(-ex_off-es, eyz-es*0.92, ezf, -ex_off+es, eyz+es*0.92, ezf+es*0.45, eye_iris);
+                pb!(-ex_off-es*0.28, eyz-es*0.88, ezf+0.001, -ex_off+es*0.28, eyz+es*0.88, ezf+es*0.5, eye_col);
+                pb!(-ex_off+es*0.12, eyz+es*0.22, ezf+es*0.42, -ex_off+es*0.72, eyz+es*0.80, ezf+es*0.58, eye_shine);
+                pb!(-ex_off-es*0.52, eyz-es*0.08, ezf+es*0.42, -ex_off-es*0.10, eyz+es*0.30, ezf+es*0.58, eye_shine);
+                pb!( ex_off-es, eyz-es*0.92, ezf,  ex_off+es, eyz+es*0.92, ezf+es*0.45, eye_iris);
+                pb!( ex_off-es*0.28, eyz-es*0.88, ezf+0.001,  ex_off+es*0.28, eyz+es*0.88, ezf+es*0.5, eye_col);
+                pb!( ex_off-es*0.72, eyz+es*0.22, ezf+es*0.42,  ex_off-es*0.12, eyz+es*0.80, ezf+es*0.58, eye_shine);
+                pb!( ex_off+es*0.10, eyz-es*0.08, ezf+es*0.42,  ex_off+es*0.52, eyz+es*0.30, ezf+es*0.58, eye_shine);
 
-                // ── 4本脚 (細くしなやか) ──
-                let lw = 0.038 * sc;
-                let lh = by0;
+                // 4本脚
+                let lw      = 0.038 * sc;
+                let lh      = by0;
                 let leg_col = [fur[0]*0.88, fur[1]*0.88, fur[2]*0.88, fur[3]];
-                let lfy = lh * (1.0 + walk * 0.08);
-                let lby = lh * (1.0 - walk * 0.08);
-                push_box(verts, idxs,
-                    cx-bw+lw*0.3, 0.0, cz+bfr-lw*2.0,
-                    cx-bw+lw*0.3+lw*2.0, lfy, cz+bfr, leg_col);
-                push_box(verts, idxs,
-                    cx+bw-lw*0.3-lw*2.0, 0.0, cz+bfr-lw*2.0,
-                    cx+bw-lw*0.3, lby, cz+bfr, leg_col);
-                push_box(verts, idxs,
-                    cx-bw+lw*0.3, 0.0, cz-bbk,
-                    cx-bw+lw*0.3+lw*2.0, lby, cz-bbk+lw*2.0, leg_col);
-                push_box(verts, idxs,
-                    cx+bw-lw*0.3-lw*2.0, 0.0, cz-bbk,
-                    cx+bw-lw*0.3, lfy, cz-bbk+lw*2.0, leg_col);
+                let lfy     = lh * (1.0 + walk * 0.08);
+                let lby     = lh * (1.0 - walk * 0.08);
+                pb!(-bw+lw*0.3, 0.0, bfr-lw*2.0, -bw+lw*0.3+lw*2.0, lfy, bfr, leg_col);
+                pb!( bw-lw*0.3-lw*2.0, 0.0, bfr-lw*2.0,  bw-lw*0.3, lby, bfr, leg_col);
+                pb!(-bw+lw*0.3, 0.0, -bbk, -bw+lw*0.3+lw*2.0, lby, -bbk+lw*2.0, leg_col);
+                pb!( bw-lw*0.3-lw*2.0, 0.0, -bbk,  bw-lw*0.3, lfy, -bbk+lw*2.0, leg_col);
 
-                // ── しっぽ (猫は上に立てる! 2セグメント+毛先) ──
-                let tw = 0.022 * sc;
+                // しっぽ (ローカルX方向に揺れる)
+                let ts    = tail_sway;
+                let tw    = 0.022 * sc;
                 let tail_col = [fur[0]*0.86, fur[1]*0.78, fur[2]*0.73, 1.0];
                 let tail_tip = [(fur[0]*1.35).min(1.0), (fur[1]*1.35).min(1.0), (fur[2]*1.35).min(1.0), 1.0];
-                let tx1 = cx + tail_sway * 0.04 * sc;
-                // 根本 (後ろ下から上へ)
-                push_box(verts, idxs,
-                    tx1-tw, by0*0.55, cz-bbk-0.04*sc,
-                    tx1+tw, by1+0.10*sc, cz-bbk+0.04*sc, tail_col);
-                // 中段 (上に伸びて少し前へ傾く)
-                let tx2 = tx1 + tail_sway * 0.07 * sc;
-                push_box(verts, idxs,
-                    tx2-tw*0.85, by1+0.08*sc, cz-bbk-0.09*sc,
-                    tx2+tw*0.85, by1+0.30*sc, cz-bbk+0.02*sc, tail_col);
-                // 毛先 (ふわっと大きめ)
-                let tx3 = tx2 + tail_sway * 0.05 * sc;
-                push_box(verts, idxs,
-                    tx3-tw*1.4, by1+0.27*sc, cz-bbk-0.11*sc,
-                    tx3+tw*1.4, by1+0.40*sc, cz-bbk+0.03*sc, tail_tip);
+                let tlx1 = ts * 0.04 * sc;
+                pb!(tlx1-tw, by0*0.55, -bbk-0.04*sc, tlx1+tw, by1+0.10*sc, -bbk+0.04*sc, tail_col);
+                let tlx2 = tlx1 + ts * 0.07 * sc;
+                pb!(tlx2-tw*0.85, by1+0.08*sc, -bbk-0.09*sc, tlx2+tw*0.85, by1+0.30*sc, -bbk+0.02*sc, tail_col);
+                let tlx3 = tlx2 + ts * 0.05 * sc;
+                pb!(tlx3-tw*1.4, by1+0.27*sc, -bbk-0.11*sc, tlx3+tw*1.4, by1+0.40*sc, -bbk+0.03*sc, tail_tip);
 
-                // ── 神秘的な青白いライト ──
                 if lights.len() < 4 {
-                    lights.push(Light {
-                        pos: [cx, by1, cz, hash],
-                        col: [0.75, 0.85, 1.0, 1.1 * sc],
-                    });
+                    lights.push(Light { pos:[cx, by1, cz, hash], col:[0.75, 0.85, 1.0, 1.1*sc] });
                 }
             }
 
@@ -3215,12 +3253,169 @@ pub fn build_dungeon(
                 }
             }
 
+            // ━━ 噴水 (TILE_FOUNTAIN): 石の鉢・水飛沫・青い光 ━━
+            if base_t == TILE_FOUNTAIN {
+                let cx=(x0+x1)*0.5; let cz=(z0+z1)*0.5;
+                let hash=(tx*11+ty*13) as f32;
+                let pulse=(time*2.0+hash).sin()*0.5+0.5_f32;
+                let splash=(time*3.5+hash).sin()*0.5+0.5_f32;
+                let stone_c = [0.42_f32,0.40,0.38,1.0];
+                let water_c = [0.30_f32,0.65,0.95,1.0];
+                let foam_c  = [0.75_f32,0.90,1.00, splash*2.0+1.5];
+                // 外側の石の縁（台形状）
+                push_box(verts,idxs, cx-0.44,0.0,cz-0.44, cx+0.44,0.06,cz+0.44, stone_c);
+                push_box(verts,idxs, cx-0.36,0.04,cz-0.36, cx+0.36,0.22,cz+0.36, stone_c);
+                // 水（鉢の中）
+                push_box(verts,idxs, cx-0.30,0.20,cz-0.30, cx+0.30,0.23+pulse*0.02,cz+0.30, water_c);
+                // 中央の石柱
+                push_box(verts,idxs, cx-0.08,0.0,cz-0.08, cx+0.08,0.55,cz+0.08, stone_c);
+                // 柱の上部（小さい鉢）
+                push_box(verts,idxs, cx-0.14,0.50,cz-0.14, cx+0.14,0.58,cz+0.14, stone_c);
+                // 水流（上から鉢へ落ちる）
+                for i in 0..4i32 {
+                    let wa = i as f32 * std::f32::consts::PI * 0.5;
+                    let wx = cx + wa.cos()*0.08;
+                    let wz = cz + wa.sin()*0.08;
+                    let wh = ((time*2.5+hash+i as f32*0.7).fract())*0.35+0.22;
+                    push_box(verts,idxs, wx-0.02,wh,wz-0.02, wx+0.02,wh+0.08,wz+0.02, foam_c);
+                }
+                // 水面のリップル（同心円状）
+                let rip = pulse*0.08;
+                push_box(verts,idxs, cx-0.28-rip,0.23,cz-0.28-rip, cx+0.28+rip,0.235,cz+0.28+rip, [0.60,0.85,1.0,0.7]);
+                if lights.len()<4 { lights.push(Light{pos:[cx,0.4,cz,hash],col:[0.25,0.60,1.0, pulse*2.5+1.5]}); }
+            }
+
+            // ━━ 祭壇 (TILE_ALTAR): 石の台座・ルーン文字が光る ━━
+            if base_t == TILE_ALTAR {
+                let cx=(x0+x1)*0.5; let cz=(z0+z1)*0.5;
+                let hash=(tx*17+ty*11) as f32;
+                let pulse=(time*1.0+hash).sin()*0.5+0.5_f32;
+                // 祭壇の属性（位置ハッシュで決定）
+                let (rune_col, altar_col): ([f32;4],[f32;4]) = match (tx+ty*3)%3 {
+                    0 => ([0.95,0.90,0.30, pulse*3.0+1.5],[0.35,0.32,0.28,1.0]), // ニュートラル（金）
+                    1 => ([0.30,0.70,1.00, pulse*3.0+1.5],[0.28,0.30,0.38,1.0]), // 善（青）
+                    _ => ([0.90,0.25,0.15, pulse*3.0+1.5],[0.38,0.28,0.26,1.0]), // 悪（赤）
+                };
+                // 台座（段状）
+                push_box(verts,idxs, cx-0.45,0.0,cz-0.45, cx+0.45,0.08,cz+0.45, altar_col);
+                push_box(verts,idxs, cx-0.38,0.06,cz-0.38, cx+0.38,0.14,cz+0.38, altar_col);
+                push_box(verts,idxs, cx-0.32,0.12,cz-0.32, cx+0.32,0.38,cz+0.32, altar_col);
+                // 天板（石のスラブ）
+                push_box(verts,idxs, cx-0.40,0.36,cz-0.36, cx+0.40,0.44,cz+0.36, altar_col);
+                // ルーン文字（天板上に光の筋）
+                for i in 0..3i32 {
+                    let rz = cz - 0.20 + i as f32 * 0.18;
+                    push_box(verts,idxs, cx-0.30,0.44,rz-0.02, cx+0.30,0.46,rz+0.02, rune_col);
+                }
+                push_box(verts,idxs, cx-0.02,0.44,cz-0.28, cx+0.02,0.46,cz+0.28, rune_col);
+                // 祭壇上の炎（揺らめく）
+                let fl=(time*3.0+hash).sin()*0.04;
+                push_box(verts,idxs, cx-0.06,0.44,cz-0.06, cx+0.06,0.44+0.22+fl,cz+0.06, [rune_col[0],rune_col[1],rune_col[2], pulse*2.0+2.0]);
+                // 台座の側面ルーン
+                push_box(verts,idxs, cx-0.40,0.18,cz-0.325, cx-0.30,0.30,cz-0.315, rune_col);
+                push_box(verts,idxs, cx+0.30,0.18,cz-0.325, cx+0.40,0.30,cz-0.315, rune_col);
+                if lights.len()<4 { lights.push(Light{pos:[cx,0.6,cz,hash],col:[rune_col[0],rune_col[1],rune_col[2], pulse*4.0+1.5]}); }
+            }
+
+            // ━━ トラップ (TILE_TRAP): スパイクトラップ・圧力プレート ━━
+            if base_t == TILE_TRAP {
+                let cx=(x0+x1)*0.5; let cz=(z0+z1)*0.5;
+                let hash=(tx*13+ty*19) as f32;
+                let armed = ((tx*5+ty*7)%3) != 0; // 2/3の確率で起動状態
+                let plate_col = [0.32_f32,0.30,0.28,1.0];
+                let spike_col = [0.60_f32,0.58,0.55,1.0];
+                let warn_col  = [0.85_f32,0.45,0.08,1.0];
+                let danger_c  = [0.90_f32,0.15,0.05, 2.0_f32];
+                // 圧力プレート（床に埋め込まれた金属板）
+                push_box(verts,idxs, cx-0.38,0.001,cz-0.38, cx+0.38,0.012,cz+0.38, plate_col);
+                // プレートの溝（十字）
+                push_box(verts,idxs, cx-0.02,0.010,cz-0.36, cx+0.02,0.015,cz+0.36, warn_col);
+                push_box(verts,idxs, cx-0.36,0.010,cz-0.02, cx+0.36,0.015,cz+0.02, warn_col);
+                if armed {
+                    // スパイク（4×4グリッド）
+                    let pulse=(time*1.5+hash).sin()*0.5+0.5_f32;
+                    for si in 0..3i32 {
+                        for sj in 0..3i32 {
+                            let sx = cx - 0.24 + si as f32 * 0.24;
+                            let sz = cz - 0.24 + sj as f32 * 0.24;
+                            let sh = 0.05 + pulse * 0.18; // 上下に動く
+                            push_box(verts,idxs, sx-0.03,0.01,sz-0.03, sx+0.03,sh,sz+0.03, spike_col);
+                            // 先端（鋭く）
+                            push_box(verts,idxs, sx-0.015,sh,sz-0.015, sx+0.015,sh+0.06,sz+0.015, spike_col);
+                        }
+                    }
+                    if lights.len()<4 { lights.push(Light{pos:[cx,0.2,cz,hash],col:[0.90,0.10,0.05, 1.5]}); }
+                } else {
+                    // 解除済み（赤いマーク）
+                    push_box(verts,idxs, cx-0.08,0.012,cz-0.08, cx+0.08,0.018,cz+0.08, danger_c);
+                }
+            }
+
+            // ━━ 柱 (TILE_PILLAR): 石の円柱・彫刻入り ━━
+            if base_t == TILE_PILLAR {
+                let cx=(x0+x1)*0.5; let cz=(z0+z1)*0.5;
+                let hash=(tx*7+ty*17) as f32;
+                let stone_c  = [0.42_f32,0.40,0.36,1.0];
+                let carve_c  = [0.34_f32,0.32,0.28,1.0];
+                let capital_c= [0.50_f32,0.48,0.44,1.0];
+                // 台座
+                push_box(verts,idxs, cx-0.28,0.0,cz-0.28, cx+0.28,0.10,cz+0.28, capital_c);
+                push_box(verts,idxs, cx-0.22,0.08,cz-0.22, cx+0.22,0.16,cz+0.22, stone_c);
+                // 柱身（8角形に近似）
+                let cr = 0.16_f32;
+                push_box(verts,idxs, cx-cr,0.14,cz-cr, cx+cr,wall_h-0.16,cz+cr, stone_c);
+                push_box(verts,idxs, cx-cr*0.7,0.14,cz-cr*1.2, cx+cr*0.7,wall_h-0.16,cz+cr*1.2, stone_c);
+                push_box(verts,idxs, cx-cr*1.2,0.14,cz-cr*0.7, cx+cr*1.2,wall_h-0.16,cz+cr*0.7, stone_c);
+                // 縦溝（フルーティング）
+                for ci in 0..4i32 {
+                    let ca = ci as f32 * std::f32::consts::PI * 0.5;
+                    let gcx = cx + ca.cos()*cr*0.9;
+                    let gcz = cz + ca.sin()*cr*0.9;
+                    push_box(verts,idxs, gcx-0.025,0.16,gcz-0.025, gcx+0.025,wall_h-0.18,gcz+0.025, carve_c);
+                }
+                // 柱頭（カピタル）
+                push_box(verts,idxs, cx-0.20,wall_h-0.18,cz-0.20, cx+0.20,wall_h-0.10,cz+0.20, stone_c);
+                push_box(verts,idxs, cx-0.26,wall_h-0.12,cz-0.26, cx+0.26,wall_h-0.04,cz+0.26, capital_c);
+                push_box(verts,idxs, cx-0.30,wall_h-0.06,cz-0.30, cx+0.30,wall_h,cz+0.30, capital_c);
+                // 苔/時間の痕跡
+                let moss_c = [0.22_f32,0.38,0.18, 0.6];
+                if (tx+ty)%3==0 {
+                    push_box(verts,idxs, cx-cr*0.6,0.14,cz-cr*0.6, cx+cr*0.6,0.30,cz+cr*0.6, moss_c);
+                }
+                let _ = hash;
+            }
+
+            // ━━ 松明 (壁マウント): 石壁際に物理的な松明を描画 ━━
             if base_t == TILE_FLOOR && tx % 8 == 0 && ty % 6 == 0 && torch_count < 2 {
                 torch_count += 1;
-                let fade = ((time * 2.3 + tx as f32 * 0.7).sin() * 0.15 + 1.0).max(0.4);
+                let hash = (tx*11+ty*7) as f32;
+                let fade = ((time * 2.3 + hash).sin() * 0.15 + 1.0).max(0.4);
+                let flicker = (time*4.7+hash).sin()*0.06;
+                // 壁に近い側を探す
+                let on_north = is_solid(get_tile(tiles,w,h,tx as i32,ty as i32-1));
+                let on_west  = is_solid(get_tile(tiles,w,h,tx as i32-1,ty as i32));
+                let (torch_x, torch_z, bracket_x0, bracket_x1, bracket_z0, bracket_z1) =
+                    if on_north {
+                        (x0+0.5, z0+0.12, x0+0.44, x0+0.56, z0+0.04, z0+0.14)
+                    } else if on_west {
+                        (x0+0.12, z0+0.5, x0+0.04, x0+0.14, z0+0.44, z0+0.56)
+                    } else {
+                        (x0+0.5, z0+0.12, x0+0.44, x0+0.56, z0+0.04, z0+0.14)
+                    };
+                // 壁ブラケット（金属製）
+                push_box(verts,idxs, bracket_x0,wall_h*0.55,bracket_z0, bracket_x1,wall_h*0.65,bracket_z1, [0.45,0.40,0.30,1.0]);
+                // 松明の棒
+                push_box(verts,idxs, torch_x-0.03,wall_h*0.50,torch_z-0.03, torch_x+0.03,wall_h*0.78,torch_z+0.03, [0.38,0.24,0.10,1.0]);
+                // 松明の先端（木炭）
+                push_box(verts,idxs, torch_x-0.04,wall_h*0.76,torch_z-0.04, torch_x+0.04,wall_h*0.84,torch_z+0.04, [0.18,0.16,0.14,1.0]);
+                // 炎（揺らめく）
+                push_box(verts,idxs, torch_x-0.05,wall_h*0.82,torch_z-0.05, torch_x+0.05,wall_h*0.98+flicker,torch_z+0.05,
+                    [1.0,0.70,0.15, fade*3.0+1.5]);
+                push_box(verts,idxs, torch_x-0.03,wall_h*0.88,torch_z-0.03, torch_x+0.03,wall_h*1.04+flicker*1.4,torch_z+0.03,
+                    [1.0,0.95,0.50, fade*2.5+2.0]);
                 if lights.len() < 4 {
                     lights.push(Light {
-                        pos: [x0 + 0.1, wall_h - 0.2, z0 + 0.1, tx as f32],
+                        pos: [torch_x, wall_h*0.95, torch_z, hash],
                         col: [1.0, 0.6, 0.2, 2.0 * fade],
                     });
                 }
