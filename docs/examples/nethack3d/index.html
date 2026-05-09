@@ -448,11 +448,10 @@ html, body {
     z-index: 16;
     touch-action: none;
     -webkit-user-select: none; user-select: none;
-    display: none;
+    display: flex;
     flex-direction: column;
     gap: 5px;
 }
-@media (pointer: coarse) { #action-wrap { display: flex; } }
 .act-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -734,8 +733,8 @@ html, body {
         <button class="act-btn" data-key="113" tabindex="-1"><span class="act-icon">🧪</span><span class="act-lbl">飲む</span></button>
     </div>
     <div class="act-row">
-        <button class="act-btn" data-key="115" tabindex="-1"><span class="act-icon">🔍</span><span class="act-lbl">探索</span></button>
-        <button class="act-btn" data-key="100" tabindex="-1"><span class="act-icon">💧</span><span class="act-lbl">落す</span></button>
+        <button class="act-btn" data-key="62"  tabindex="-1"><span class="act-icon">🔽</span><span class="act-lbl">降りる</span></button>
+        <button class="act-btn" data-key="63"  tabindex="-1"><span class="act-icon">❓</span><span class="act-lbl">ヘルプ</span></button>
         <button class="act-btn yn-y" data-key="121" tabindex="-1"><span class="act-icon">✅</span><span class="act-lbl">Yes</span></button>
         <button class="act-btn yn-n" data-key="110" tabindex="-1"><span class="act-icon">❌</span><span class="act-lbl">No</span></button>
     </div>
