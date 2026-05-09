@@ -1411,7 +1411,7 @@ document.getElementById('keyboard-btn-bar')?.addEventListener('click', () => foc
 // facing: 0=N 1=E 2=S 3=W 4=NE 5=SE 6=SW 7=NW
 // 列順: [k, j, h, l, y, u, b, n] → 変換後 char code
 const REMAP_TABLE = [
-    [107,106,104,108,121,117, 98,110], // N (変換なし)
+    [107,106,104,108,121,117, 98,110], // N
     [108,104,107,106,117,110,121, 98], // E (90°CW)
     [106,107,108,104,110, 98,117,121], // S (180°)
     [104,108,106,107, 98,121,110,117], // W (90°CCW)
@@ -1422,7 +1422,12 @@ const REMAP_TABLE = [
 ];
 const REMAP_KEYS = [107,106,104,108,121,117,98,110]; // k,j,h,l,y,u,b,n
 
-// facing毎のカメラ基準角 (Rust facing_to_angle と同値)
+// TOPカメラ専用リマップ: カメラが北固定で南向きのため左右が反転
+// 上下はそのまま(北=上/南=下)、左右・斜めの左右成分のみ反転
+const TOP_REMAP = [107,106,108,104,117,121,110,98]; // k,j,l,h,u,y,n,b
+
+// facing毎のカメラ基準角
+// 注意: +z=南の座標系では angle=3π/4 → SW方向、angle=-3π/4 → NW方向
 const FACING_BASE_ANGLE = [
     -Math.PI/2,         // N(0)
      0,                 // E(1)
@@ -1430,32 +1435,32 @@ const FACING_BASE_ANGLE = [
      Math.PI,           // W(3)
     -Math.PI/4,         // NE(4)
      Math.PI/4,         // SE(5)
-    -3*Math.PI/4,       // SW(6)
-     3*Math.PI/4,       // NW(7)
+    -3*Math.PI/4,       // facing6 (angle=-3π/4 = NW方向だがRust側でSWラベル)
+     3*Math.PI/4,       // facing7 (angle=+3π/4 = SW方向だがRust側でNWラベル)
 ];
 
 // カメラの現在の合計ヨー角から実効facing(0-7)を計算
 function getEffectiveFacing() {
     const base = FACING_BASE_ANGLE[playerFacing] ?? (Math.PI/2);
     let a = base + camYawOffset;
-    // -π〜π に正規化
     a = ((a + Math.PI) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI) - Math.PI;
     const P = Math.PI;
-    if (a >  7*P/8 || a <= -7*P/8) return 3; // W
-    if (a >  5*P/8) return 7; // NW
+    if (a >  7*P/8 || a <= -7*P/8) return 3; // W  (angle≈±π)
+    if (a >  5*P/8) return 6; // SW (angle≈3π/4 → cos<0,sin>0 → West+South)
     if (a >  3*P/8) return 2; // S
     if (a >    P/8) return 5; // SE
     if (a > -  P/8) return 1; // E
     if (a > -3*P/8) return 4; // NE
     if (a > -5*P/8) return 0; // N
-    return 6; // SW
+    return 7; // NW (angle≈-3π/4 → cos<0,sin<0 → West+North)
 }
 
 function remapDirKey(code) {
-    // TOPカメラ: 絶対方向 (リマップなし)
-    if (currentCamMode === 'TOP') return code;
     const i = REMAP_KEYS.indexOf(code);
-    return i < 0 ? code : REMAP_TABLE[getEffectiveFacing()][i];
+    if (i < 0) return code;
+    // TOPカメラ: カメラが常に北固定なので専用リマップ(左右反転のみ)
+    if (currentCamMode === 'TOP') return TOP_REMAP[i];
+    return REMAP_TABLE[getEffectiveFacing()][i];
 }
 
 // ━━ Dパッド イベント ━━
