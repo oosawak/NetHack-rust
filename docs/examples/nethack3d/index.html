@@ -359,7 +359,7 @@ html, body {
 }
 #cam-zone {
     position: fixed;
-    right: 0; bottom: 58px;
+    right: 0; bottom: 66px;
     width: 48%; height: 52%;
     z-index: 15;
     touch-action: none;
@@ -368,48 +368,121 @@ html, body {
 /* ━━ Dパッド ━━ */
 #dpad-wrap {
     position: fixed;
-    left: 12px; bottom: 70px;
-    width: 148px; height: 148px;
+    left: 8px; bottom: 66px;
+    width: 174px; height: 174px;
     z-index: 16;
     touch-action: none;
     -webkit-user-select: none; user-select: none;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(3, 1fr);
-    gap: 3px;
+    gap: 5px;
 }
 .dp-btn {
-    border-radius: 8px;
-    border: 1.5px solid rgba(255,255,255,0.25);
-    background: rgba(0,0,0,0.60);
+    border-radius: 10px;
+    border: 2px solid rgba(255,255,255,0.25);
+    background: rgba(0,0,0,0.65);
     color: rgba(255,255,255,0.85);
-    font-size: 20px;
+    font-size: 22px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     transition: background 0.06s, border-color 0.06s;
     -webkit-tap-highlight-color: transparent;
+    touch-action: none;
 }
 .dp-btn.cardinal {
-    background: rgba(10,20,40,0.75);
-    border-color: rgba(80,160,255,0.40);
-    font-size: 22px;
+    background: rgba(10,25,55,0.82);
+    border-color: rgba(80,160,255,0.50);
+    font-size: 24px;
 }
 .dp-btn.center {
     background: rgba(30,30,30,0.70);
     border-color: rgba(255,255,255,0.20);
-    font-size: 15px;
-    color: rgba(255,255,255,0.50);
+    font-size: 14px;
+    color: rgba(255,255,255,0.45);
 }
 .dp-btn.diag {
-    font-size: 16px;
-    border-color: rgba(255,255,255,0.15);
-    color: rgba(255,255,255,0.55);
+    font-size: 18px;
+    border-color: rgba(255,255,255,0.18);
+    color: rgba(255,255,255,0.60);
 }
 .dp-btn.active, .dp-btn:active {
-    background: rgba(50,120,220,0.55) !important;
-    border-color: rgba(120,200,255,0.90) !important;
+    background: rgba(50,120,220,0.60) !important;
+    border-color: rgba(120,200,255,0.95) !important;
     color: #fff !important;
 }
+/* ━━ L/R ショルダーボタン ━━ */
+.shoulder-btn {
+    position: fixed;
+    bottom: 248px;
+    width: 58px; height: 34px;
+    border-radius: 8px;
+    border: 2px solid rgba(100,180,255,0.45);
+    background: rgba(0,20,60,0.82);
+    color: rgba(180,220,255,0.90);
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 16;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none; user-select: none;
+    display: none;
+    align-items: center; justify-content: center;
+    letter-spacing: 0.05em;
+}
+.shoulder-btn:active {
+    background: rgba(50,120,220,0.55);
+    border-color: rgba(120,200,255,0.95);
+}
+#shoulder-l { left: 8px; }
+#shoulder-r { right: 8px; }
+@media (pointer: coarse) {
+    .shoulder-btn { display: flex; }
+}
+/* ━━ アクションボタン (右下) ━━ */
+#action-wrap {
+    position: fixed;
+    right: 8px; bottom: 66px;
+    width: 182px;
+    z-index: 16;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+}
+@media (pointer: coarse) { #action-wrap { display: flex; } }
+.act-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+}
+.act-btn {
+    height: 46px;
+    border-radius: 10px;
+    border: 2px solid rgba(255,200,80,0.30);
+    background: rgba(30,15,0,0.75);
+    color: rgba(255,200,100,0.90);
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+    line-height: 1.1;
+}
+.act-btn .act-icon { font-size: 16px; line-height: 1; }
+.act-btn .act-lbl  { font-size: 9px; color: rgba(255,200,80,0.65); }
+.act-btn:active {
+    background: rgba(80,50,0,0.80);
+    border-color: rgba(255,200,80,0.90);
+    color: #fff;
+}
+.act-btn.yn-y { border-color: rgba(100,255,100,0.40); background: rgba(0,30,0,0.75); color: #8f8; }
+.act-btn.yn-n { border-color: rgba(255,80,80,0.40);  background: rgba(30,0,0,0.75);  color: #f88; }
 /* カメラスワイプ ヒント */
 #cam-zone-hint {
     position: fixed;
@@ -467,6 +540,7 @@ html, body {
 .mini-btn.spc-btn { font-size: 18px; }
 .mini-btn.kbd-btn.open { background: #332200; border-color: #ff0; color: #ff0; }
 .mini-btn.cam-btn { color: #0ff; border-color: #0af; }
+.mini-btn.rot-btn { display: none !important; }
 
 /* ━━ キーボードパネル ━━ */
 #kbd-panel {
@@ -479,6 +553,8 @@ html, body {
     z-index: 24;
     flex-direction: column;
     gap: 3px;
+    max-height: 44vh;
+    overflow-y: auto;
 }
 #kbd-panel.open { display: flex; }
 
@@ -645,6 +721,26 @@ html, body {
     <button class="dp-btn diag"    data-raw="110" tabindex="-1">↘</button>
 </div>
 
+<!-- L/R ショルダーボタン (カメラ回転) -->
+<button id="shoulder-l" class="shoulder-btn" tabindex="-1">◀ L</button>
+<button id="shoulder-r" class="shoulder-btn" tabindex="-1">R ▶</button>
+
+<!-- アクションボタン (右下) -->
+<div id="action-wrap">
+    <div class="act-row">
+        <button class="act-btn" data-key="44"  tabindex="-1"><span class="act-icon">⬆️</span><span class="act-lbl">拾う</span></button>
+        <button class="act-btn" data-key="105" tabindex="-1"><span class="act-icon">🎒</span><span class="act-lbl">持物</span></button>
+        <button class="act-btn" data-key="101" tabindex="-1"><span class="act-icon">🍖</span><span class="act-lbl">食べ</span></button>
+        <button class="act-btn" data-key="113" tabindex="-1"><span class="act-icon">🧪</span><span class="act-lbl">飲む</span></button>
+    </div>
+    <div class="act-row">
+        <button class="act-btn" data-key="115" tabindex="-1"><span class="act-icon">🔍</span><span class="act-lbl">探索</span></button>
+        <button class="act-btn" data-key="100" tabindex="-1"><span class="act-icon">💧</span><span class="act-lbl">落す</span></button>
+        <button class="act-btn yn-y" data-key="121" tabindex="-1"><span class="act-icon">✅</span><span class="act-lbl">Yes</span></button>
+        <button class="act-btn yn-n" data-key="110" tabindex="-1"><span class="act-icon">❌</span><span class="act-lbl">No</span></button>
+    </div>
+</div>
+
 <!-- カメラスワイプ ゾーン (右) -->
 <div id="cam-zone"></div>
 <div id="cam-zone-hint">← スワイプ →<br>カメラ回転</div>
@@ -663,8 +759,8 @@ html, body {
     <button class="mini-btn spc-btn"   data-key="32"  tabindex="-1">⎵<span class="lbl">SPC</span></button>
     <button class="mini-btn enter-btn" data-key="13"  tabindex="-1">↵<span class="lbl">決定</span></button>
     <button class="mini-btn cam-btn"   id="mini-cam-btn"  tabindex="-1">📷<span class="lbl" id="mini-cam-lbl">TPS</span></button>
-    <button class="mini-btn rot-btn"   id="rot-left-btn"  tabindex="-1">↺<span class="lbl">左回転</span></button>
-    <button class="mini-btn rot-btn"   id="rot-right-btn" tabindex="-1">↻<span class="lbl">右回転</span></button>
+    <button class="mini-btn rot-btn"   id="rot-left-btn"  tabindex="-1" style="display:none">↺</button>
+    <button class="mini-btn rot-btn"   id="rot-right-btn" tabindex="-1" style="display:none">↻</button>
     <button class="mini-btn kbd-btn"   id="mini-kbd-btn"  tabindex="-1">⌨️<span class="lbl">コマンド</span></button>
 </div>
 
@@ -1147,6 +1243,25 @@ function rotatePlayerFacing(cw) {
 document.getElementById('rot-left-btn')?.addEventListener('click',  () => rotatePlayerFacing(false));
 document.getElementById('rot-right-btn')?.addEventListener('click', () => rotatePlayerFacing(true));
 
+// L/R ショルダーボタン (カメラ回転) - ポインターイベント対応
+(function() {
+    function makeShoulderRepeat(btn, cw) {
+        let timer = null;
+        function fire() { rotatePlayerFacing(cw); }
+        btn.addEventListener('pointerdown', (e) => {
+            e.preventDefault(); btn.setPointerCapture(e.pointerId);
+            fire();
+            timer = setInterval(fire, 200);
+        });
+        btn.addEventListener('pointerup',     () => { if (timer) { clearInterval(timer); timer = null; } });
+        btn.addEventListener('pointercancel', () => { if (timer) { clearInterval(timer); timer = null; } });
+    }
+    const sl = document.getElementById('shoulder-l');
+    const sr = document.getElementById('shoulder-r');
+    if (sl) makeShoulderRepeat(sl, false);
+    if (sr) makeShoulderRepeat(sr, true);
+})();
+
 // ━━ キー入力キュー ━━
 let keyQueue  = [];
 let keyResolve = null;
@@ -1233,6 +1348,13 @@ mobileInput.addEventListener('input', (e) => {
     }
     mobileInput.value = SENTINEL;
     mobileInput.setSelectionRange(SENTINEL.length, SENTINEL.length);
+});
+
+// アクションボタン
+document.querySelectorAll('.act-btn[data-key]').forEach(btn => {
+    function fireAct() { sendKey(parseInt(btn.dataset.key)); }
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); fireAct(); }, { passive: false });
+    btn.addEventListener('click', fireAct);
 });
 
 document.querySelectorAll('.nav-btn[data-key]').forEach(btn => {
