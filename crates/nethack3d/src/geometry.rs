@@ -131,6 +131,7 @@ fn get_tile(tiles: &[u8], w: usize, h: usize, x: i32, y: i32) -> u8 {
 pub fn build_dungeon(
     tiles: &[u8], w: usize, h: usize,
     time: f32, px: f32, pz: f32,
+    dog_seed: u32, cat_seed: u32,
     verts: &mut Vec<Vertex>, idxs: &mut Vec<u32>,
     lights: &mut Vec<Light>,
 ) {
@@ -497,10 +498,10 @@ pub fn build_dungeon(
                 let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
                 let hash = (tx * 13 + ty * 7) as f32;
 
-                let size_var = (tx * 5 + ty * 3) % 3;
+                let size_var = dog_seed % 3;
                 let sc = tier_base * match size_var { 0 => 0.60_f32, 1 => 0.85_f32, _ => 1.10_f32 };
 
-                let fur = match (tx * 7 + ty * 11) % 5 {
+                let fur = match (dog_seed >> 4) % 5 {
                     0 => [0.82, 0.62, 0.28, 1.0_f32],
                     1 => [0.92, 0.88, 0.75, 1.0_f32],
                     2 => [0.22, 0.18, 0.12, 1.0_f32],
@@ -606,9 +607,9 @@ pub fn build_dungeon(
                 let cx = (x0+x1)*0.5; let cz = (z0+z1)*0.5;
                 let hash = (tx * 17 + ty * 11) as f32;
 
-                let sc = tier_base * match (tx * 5 + ty * 3) % 3 { 0 => 0.55_f32, 1 => 0.75_f32, _ => 0.90_f32 };
+                let sc = tier_base * match cat_seed % 3 { 0 => 0.55_f32, 1 => 0.75_f32, _ => 0.90_f32 };
 
-                let fur: [f32;4] = match (tx * 11 + ty * 7) % 5 {
+                let fur: [f32;4] = match (cat_seed >> 4) % 5 {
                     0 => [0.92, 0.50, 0.14, 1.0],
                     1 => [0.10, 0.08, 0.09, 1.0],
                     2 => [0.96, 0.94, 0.91, 1.0],
@@ -620,7 +621,7 @@ pub fn build_dungeon(
                 let ear_out   = [fur[0]*0.82, fur[1]*0.72, fur[2]*0.72, 1.0];
                 let pink      = [0.95_f32, 0.65, 0.68, 1.0];
                 let wh_col    = [0.96_f32, 0.96, 0.96, 1.0];
-                let eye_iris: [f32;4] = match (tx * 3 + ty * 5) % 3 {
+                let eye_iris: [f32;4] = match (cat_seed >> 8) % 3 {
                     0 => [0.18, 0.72, 0.28, 3.0],
                     1 => [0.82, 0.58, 0.08, 3.0],
                     _ => [0.12, 0.42, 0.78, 3.0],
@@ -3448,13 +3449,32 @@ fn push_box(
 /// プレイヤーキャラクター — 全身騎士型ボックスモデル (鎧・剣・盾付き)
 pub fn build_player(
     verts: &mut Vec<Vertex>, idxs: &mut Vec<u32>,
-    px: f32, pz: f32, time: f32,
+    px: f32, pz: f32, time: f32, facing: u8,
 ) {
+    use std::f32::consts::FRAC_PI_2;
+    use crate::math::facing_to_angle;
+
     let walk = (time * 4.5).sin();
     let bob  = (time * 9.0).sin().abs() * 0.013; // 腰より上のボブ (常に正)
     let lf   =  walk * 0.055; // 脚の前後振り (右脚前)
     let af   = -walk * 0.040; // 腕の前後振り (右腕逆位相)
     let sy   = bob;           // 腰より上全体のY オフセット
+
+    // 進行方向に回転: モデルはデフォルト北向き(-Z), rot=facing_angle+π/2 で補正
+    let rot = facing_to_angle(facing) + FRAC_PI_2;
+    let (sr, cr) = rot.sin_cos();
+    let rp = |lx: f32, lz: f32| -> (f32, f32) {
+        (px + lx * cr - lz * sr, pz + lx * sr + lz * cr)
+    };
+    macro_rules! pb {
+        ($lx0:expr,$y0:expr,$lz0:expr,$lx1:expr,$y1:expr,$lz1:expr,$col:expr) => {{
+            let (wx0,wz0)=rp($lx0,$lz0); let (wx1,wz1)=rp($lx1,$lz1);
+            let (wx2,wz2)=rp($lx0,$lz1); let (wx3,wz3)=rp($lx1,$lz0);
+            push_box(verts,idxs,
+                wx0.min(wx1).min(wx2).min(wx3),$y0,wz0.min(wz1).min(wz2).min(wz3),
+                wx0.max(wx1).max(wx2).max(wx3),$y1,wz0.max(wz1).max(wz2).max(wz3),$col);
+        }};
+    }
 
     // ── 色定義 ──
     let boot_col  = [0.18, 0.12, 0.07, 3.0_f32]; // 黒革ブーツ
@@ -3472,55 +3492,51 @@ pub fn build_player(
     let shld_col  = [0.20, 0.32, 0.65, 3.0_f32]; // 盾 (青)
     let boss_col  = [0.65, 0.65, 0.38, 3.0_f32]; // 盾中央ボス (金)
 
-    // ── 右脚 (前進) ──
-    push_box(verts, idxs, px+0.02,0.00,pz-0.09+lf, px+0.12,0.07,pz+0.04+lf, boot_col);
-    push_box(verts, idxs, px+0.03,0.07,pz-0.08+lf, px+0.11,0.32,pz+0.03+lf, leg_col);
+    // ── 右脚 (前進) ── ローカル座標で記述 (X正=右, Z負=前)
+    pb!( 0.02, 0.00, -0.09+lf,  0.12, 0.07,  0.04+lf, boot_col);
+    pb!( 0.03, 0.07, -0.08+lf,  0.11, 0.32,  0.03+lf, leg_col);
 
     // ── 左脚 (後退) ──
-    push_box(verts, idxs, px-0.12,0.00,pz-0.09-lf, px-0.02,0.07,pz+0.04-lf, boot_col);
-    push_box(verts, idxs, px-0.11,0.07,pz-0.08-lf, px-0.03,0.32,pz+0.03-lf, leg_col);
+    pb!(-0.12, 0.00, -0.09-lf, -0.02, 0.07,  0.04-lf, boot_col);
+    pb!(-0.11, 0.07, -0.08-lf, -0.03, 0.32,  0.03-lf, leg_col);
 
     // ── 腰ベルト ──
-    push_box(verts, idxs, px-0.14,sy+0.30,pz-0.10, px+0.14,sy+0.36,pz+0.10, belt_col);
+    pb!(-0.14, sy+0.30, -0.10,  0.14, sy+0.36,  0.10, belt_col);
 
     // ── 胴体 (鎧) ──
-    push_box(verts, idxs, px-0.14,sy+0.35,pz-0.10, px+0.14,sy+0.60,pz+0.10, armor_col);
+    pb!(-0.14, sy+0.35, -0.10,  0.14, sy+0.60,  0.10, armor_col);
 
     // ── 右腕 (剣側・腕は逆位相) ──
-    push_box(verts, idxs, px+0.14,sy+0.36,pz-0.08+af, px+0.23,sy+0.58,pz+0.07+af, arm_col);
+    pb!( 0.14, sy+0.36, -0.08+af,  0.23, sy+0.58,  0.07+af, arm_col);
 
     // ── 左腕 (盾側) ──
-    push_box(verts, idxs, px-0.23,sy+0.36,pz-0.08-af, px-0.14,sy+0.58,pz+0.07-af, arm_col);
+    pb!(-0.23, sy+0.36, -0.08-af, -0.14, sy+0.58,  0.07-af, arm_col);
 
     // ── 首 ──
-    push_box(verts, idxs, px-0.05,sy+0.59,pz-0.05, px+0.05,sy+0.65,pz+0.05, neck_col);
+    pb!(-0.05, sy+0.59, -0.05,  0.05, sy+0.65,  0.05, neck_col);
 
     // ── 頭 ──
-    push_box(verts, idxs, px-0.10,sy+0.63,pz-0.10, px+0.10,sy+0.83,pz+0.10, head_col);
+    pb!(-0.10, sy+0.63, -0.10,  0.10, sy+0.83,  0.10, head_col);
 
     // ── ヘルメット + バイザー ──
-    push_box(verts, idxs, px-0.11,sy+0.78,pz-0.11, px+0.11,sy+0.92,pz+0.11, helm_col);
-    push_box(verts, idxs, px-0.09,sy+0.69,pz-0.115, px+0.09,sy+0.78,pz-0.100, visor_col);
+    pb!(-0.11, sy+0.78, -0.11,  0.11, sy+0.92,  0.11, helm_col);
+    // バイザーは前面 (ローカルZ=-0.115) に突出
+    pb!(-0.09, sy+0.69, -0.115,  0.09, sy+0.78, -0.100, visor_col);
 
     // ── 剣 (右手) — 腕の振りに追随 ──
-    let sz  = pz - 0.04 + af;      // 剣のZ中心
-    let sy2 = sy + 0.36;            // 腕の付け根Y
-    // 柄
-    push_box(verts, idxs, px+0.176,sy2-0.20,sz-0.020, px+0.204,sy2-0.03,sz+0.020, grip_col);
-    // 鍔
-    push_box(verts, idxs, px+0.12,sy2-0.04,sz-0.025, px+0.26,sy2+0.02,sz+0.025, guard_col);
-    // 刃 (頭上まで伸びる長めの刃)
-    push_box(verts, idxs, px+0.175,sy2+0.01,sz-0.022, px+0.205,sy2+0.55,sz+0.022, sword_col);
+    let sz_l = -0.04 + af;    // 剣のローカルZ中心
+    let sy2  = sy + 0.36;     // 腕の付け根Y
+    pb!( 0.176, sy2-0.20, sz_l-0.020,  0.204, sy2-0.03, sz_l+0.020, grip_col);
+    pb!( 0.12,  sy2-0.04, sz_l-0.025,  0.26,  sy2+0.02, sz_l+0.025, guard_col);
+    pb!( 0.175, sy2+0.01, sz_l-0.022,  0.205, sy2+0.55, sz_l+0.022, sword_col);
 
     // ── 盾 (左手) — 腕の振りと逆位相 ──
-    let shz = pz - 0.02 - af;
-    let shy = sy + 0.28;
-    // 盾本体 (平たい青い板)
-    push_box(verts, idxs, px-0.34,shy,shz-0.03, px-0.17,shy+0.30,shz+0.03, shld_col);
-    // 盾中央ボス (前方に少し飛び出す)
-    push_box(verts, idxs, px-0.29,shy+0.10,shz-0.06, px-0.22,shy+0.20,shz-0.02, boss_col);
+    let shz_l = -0.02 - af;
+    let shy   = sy + 0.28;
+    pb!(-0.34, shy,      shz_l-0.03, -0.17, shy+0.30, shz_l+0.03, shld_col);
+    pb!(-0.32, shy+0.06, shz_l-0.07, -0.19, shy+0.20, shz_l-0.03, boss_col);
 
-    // ── 足元の光輪 ──
+    // ── 足元の光輪 (回転不要な正方形) ──
     push_quad(verts, idxs,
         [px-0.22, 0.005, pz-0.22],
         [px+0.22, 0.005, pz-0.22],

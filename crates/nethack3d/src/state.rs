@@ -22,6 +22,10 @@ pub struct Nethack3dState {
     pub cam_yaw_offset: f32,   // タッチスワイプによるカメラヨー追加回転
     pub time:         f32,
     pub prev_ts:      f64,
+    // ペット外見シード (初回set_map時にタイルデータから生成, 以後不変)
+    pub dog_seed:     u32,
+    pub cat_seed:     u32,
+    pet_seeds_init:   bool,
 }
 
 impl Nethack3dState {
@@ -38,10 +42,24 @@ impl Nethack3dState {
             cam_yaw_offset: 0.0,
             time: 0.0,
             prev_ts: 0.0,
+            dog_seed: 0,
+            cat_seed: 0,
+            pet_seeds_init: false,
         }
     }
 
     pub fn set_map(&mut self, tiles: Vec<u8>, w: usize, h: usize) {
+        // 初回のみタイルデータからペット外見シードを生成 (以後不変)
+        if !self.pet_seeds_init {
+            let mut h0: u32 = 0x12345678;
+            for (i, &t) in tiles.iter().enumerate() {
+                h0 ^= (t as u32).wrapping_mul(0x9e3779b9).wrapping_add(i as u32);
+                h0 = h0.rotate_left(5);
+            }
+            self.dog_seed = h0;
+            self.cat_seed = h0.wrapping_mul(0x6c62272e).wrapping_add(0xdeadbeef);
+            self.pet_seeds_init = true;
+        }
         self.tiles = tiles;
         self.map_w = w;
         self.map_h = h;
@@ -107,10 +125,11 @@ impl Nethack3dState {
             build_dungeon(
                 &self.tiles, self.map_w, self.map_h,
                 self.time, self.player_x, self.player_z,
+                self.dog_seed, self.cat_seed,
                 &mut verts, &mut idxs, &mut lights,
             );
         }
-        build_player(&mut verts, &mut idxs, self.vis_x + 0.5, self.vis_z + 0.5, self.time);
+        build_player(&mut verts, &mut idxs, self.vis_x + 0.5, self.vis_z + 0.5, self.time, self.player_facing);
 
         // TOP視点: 明るい真上ライトを追加してダンジョン全体を照らす
         let (fog_col, is_top) = if matches!(self.cam_mode, CameraMode::Top) {
