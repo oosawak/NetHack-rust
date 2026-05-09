@@ -1344,6 +1344,7 @@ document.addEventListener('keydown', processKeyEvent);
 
 mobileInput.addEventListener('keydown', (e) => {
     processKeyEvent(e);
+    e.stopPropagation(); // document の keydown ハンドラへのバブリングを防ぐ (二重送信防止)
     setTimeout(() => {
         mobileInput.value = SENTINEL;
         mobileInput.setSelectionRange(SENTINEL.length, SENTINEL.length);
@@ -1779,12 +1780,24 @@ canvas3d.addEventListener('touchend', (e) => {
     }
 }, { passive: true });
 
+// PC: マウスクリックでエンティティポップアップ表示
+canvas3d.addEventListener('click', (e) => {
+    if (e.isTrusted) showEntityPopupAtTouch(e.clientX, e.clientY);
+});
+
 // ポップアップを画面タップで消す (ポップアップ外タップのみ)
 document.addEventListener('touchstart', (e) => {
     if (entityPopup.style.display !== 'none' && !entityPopup.contains(e.target)) {
         hideEntityPopup();
     }
 }, { passive: true });
+
+// PC: マウスクリックでポップアップを消す
+document.addEventListener('mousedown', (e) => {
+    if (entityPopup.style.display !== 'none' && !entityPopup.contains(e.target)) {
+        hideEntityPopup();
+    }
+});
 
 
 
