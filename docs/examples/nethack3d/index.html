@@ -2044,6 +2044,7 @@ async function nethackCallback(name, ...args) {
 
     case 'shim_askname': {
         const playerName = await askLine('Enter your name:');
+        keyQueue.length = 0; // 名前入力のEnterなど余分なキーをクリア
         const Module = wasmModule;
         const ptr = Module.nethackGlobal?.pointers?.['plnamesiz'] || 0;
         if (ptr) Module.stringToUTF8(playerName || 'Player', ptr, 256);
@@ -2279,7 +2280,8 @@ try {
     console.log('[LOAD] init_nethack3d() done');
 } catch(e) {
     console.error('[LOAD] init_nethack3d() FAILED:', e);
-    loadingEl.textContent = '3D init error: ' + e;
+    loadingEl.style.cssText = 'display:block;color:#f55;font-size:20px;z-index:999;background:#000;padding:20px;';
+    loadingEl.textContent = '⚠️ 3D描画エラー:\n' + e + '\n\nF12 > Console でエラー確認してください';
     throw e;
 }
 startRaf();
