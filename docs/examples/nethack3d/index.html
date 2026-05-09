@@ -1667,10 +1667,15 @@ function showEntityPopupAtTouch(tx, ty) {
         emoji = '🔽'; title = '下り階段';
         row1 = isSameTile ? '重なっています — 降りられます' : '下り階段';
     } else if ('$:!?/=%*([)'.includes(best.ch)) {
-        const itemEmojis = { '$':'💰', ':':'🍖', '!':'⚗️', '?':'📜', '/':'🪄', '=':'💍', '%':'🍎', '*':'💎', '(':'🔧', '[':'🛡', ')':'⚔️' };
+        const itemEmojis = { '$':'💰', ':':'🍖', '!':'⚗️', '?':'📜', '/':'🪄', '=':'💍', '%':'🍎', '*':'💎', '(':'📦', '[':'🛡', ')':'⚔️' };
         emoji = itemEmojis[best.ch] || '✨';
         title = 'アイテム';
         row1 = isSameTile ? '重なっています — 拾えます' : '移動して重なると拾えます';
+    } else if (best.ch === 'm') {
+        // ミミック：宝箱に見えるが実はモンスター（発見済み）
+        emoji = '📦'; title = '！ミミック (Mimic)';
+        row1 = '⚠️ 宝箱に化けていたモンスター';
+        row2 = isAdjacent ? '隣にいます — 攻撃可能' : '近づくと攻撃してきます';
     } else {
         const info = MONSTER_INFO[best.ch];
         emoji = info?.emoji || '👾';
@@ -1686,7 +1691,8 @@ function showEntityPopupAtTouch(tx, ty) {
     // アクションボタン
     epActions.innerHTML = '';
     const isPlayer  = best.ch === '@';
-    const isMonster = !isPlayer && best.ch !== '<' && best.ch !== '>' &&
+    const isMimic   = best.ch === 'm';
+    const isMonster = !isPlayer && !isMimic && best.ch !== '<' && best.ch !== '>' &&
                       !'$:!?/=%*([)'.includes(best.ch) &&
                       best.ch !== 'd' && best.ch !== 'f' && best.ch !== 'c';
     const isPet   = best.ch === 'd' || best.ch === 'f' || best.ch === 'c';
@@ -1708,7 +1714,7 @@ function showEntityPopupAtTouch(tx, ty) {
         makeActBtn('⬆️ 拾う (,)', '', () => sendKey(44));
         makeActBtn('📦 持ち物 (i)', 'ep-act-look', () => sendKey(105));
         makeActBtn('🧬 能力 (@)', 'ep-act-look', () => sendKey(64));
-    } else if (isMonster) {
+    } else if (isMimic || isMonster) {
         if (isAdjacent) {
             const dirKey = dirKeyToward(best.tx, best.tz);
             if (dirKey) makeActBtn('⚔️ 攻撃', '', () => sendKey(dirKey));
