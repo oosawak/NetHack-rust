@@ -1183,8 +1183,14 @@ mobileInput.addEventListener('input', (e) => {
 });
 
 document.querySelectorAll('.nav-btn[data-key]').forEach(btn => {
-    btn.addEventListener('touchstart', (e) => { e.preventDefault(); sendKey(parseInt(btn.dataset.key)); });
-    btn.addEventListener('click', () => sendKey(parseInt(btn.dataset.key)));
+    const DIR_KEYS = new Set([121,107,117,104,108,98,106,110]); // y,k,u,h,l,b,j,n
+    function fireNavKey() {
+        let k = parseInt(btn.dataset.key);
+        if (DIR_KEYS.has(k)) k = remapDirKey(k);
+        sendKey(k);
+    }
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); fireNavKey(); });
+    btn.addEventListener('click', fireNavKey);
 });
 
 function waitForKey() {
@@ -1206,27 +1212,16 @@ function setKbdOpen(open) {
     kbdOpen = open;
     kbdPanel?.classList.toggle('open', open);
     kbdBtn?.classList.toggle('open', open);
-    // キーボードパネルが開いている間はジョイスティックを非表示
-    const joyEl  = document.getElementById('joy-outer');
+    // キーボードパネルが開いている間はDパッドを非表示
+    const dpadEl = document.getElementById('dpad-wrap');
     const camZone = document.getElementById('cam-zone');
-    if (joyEl)  joyEl.style.visibility  = open ? 'hidden' : 'visible';
+    if (dpadEl)  dpadEl.style.visibility  = open ? 'hidden' : 'visible';
     if (camZone) camZone.style.display   = open ? 'none' : '';
 }
 kbdBtn?.addEventListener('click', () => setKbdOpen(!kbdOpen));
 document.getElementById('keyboard-btn-bar')?.addEventListener('click', () => focusMobileInput());
 
-// ━━ ジョイスティック (タッチ + マウス, 常時表示, カメラ基準) ━━
-const joyOuter = document.getElementById('joy-outer');
-const joyThumb = document.getElementById('joy-thumb');
-const JOY_R    = 48;   // サム最大移動半径 (px)
-const JOY_DEAD = 12;   // デッドゾーン
-let joyActive  = false;
-let joyCX = 0, joyCY = 0;
-let joyTouchId = null;
-let joyKeyCode = null;
-let joyRepeat  = null;
-
-// ── カメラ基準キーリマップ ──
+// ━━ Dパッド + カメラ基準キーリマップ ━━
 // facing: 0=N 1=E 2=S 3=W 4=NE 5=SE 6=SW 7=NW
 // 列順: [k, j, h, l, y, u, b, n] → 変換後 char code
 const REMAP_TABLE = [
@@ -1240,99 +1235,71 @@ const REMAP_TABLE = [
     [121,110, 98,117,104,107,106,108], // NW (315°CW)
 ];
 const REMAP_KEYS = [107,106,104,108,121,117,98,110]; // k,j,h,l,y,u,b,n
+
+// facing毎のカメラ基準角 (Rust facing_to_angle と同値)
+const FACING_BASE_ANGLE = [
+    -Math.PI/2,         // N(0)
+     0,                 // E(1)
+     Math.PI/2,         // S(2)
+     Math.PI,           // W(3)
+    -Math.PI/4,         // NE(4)
+     Math.PI/4,         // SE(5)
+    -3*Math.PI/4,       // SW(6)
+     3*Math.PI/4,       // NW(7)
+];
+
+// カメラの現在の合計ヨー角から実効facing(0-7)を計算
+function getEffectiveFacing() {
+    const base = FACING_BASE_ANGLE[playerFacing] ?? (Math.PI/2);
+    let a = base + camYawOffset;
+    // -π〜π に正規化
+    a = ((a + Math.PI) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI) - Math.PI;
+    const P = Math.PI;
+    if (a >  7*P/8 || a <= -7*P/8) return 3; // W
+    if (a >  5*P/8) return 7; // NW
+    if (a >  3*P/8) return 2; // S
+    if (a >    P/8) return 5; // SE
+    if (a > -  P/8) return 1; // E
+    if (a > -3*P/8) return 4; // NE
+    if (a > -5*P/8) return 0; // N
+    return 6; // SW
+}
+
 function remapDirKey(code) {
     const i = REMAP_KEYS.indexOf(code);
-    return i < 0 ? code : REMAP_TABLE[playerFacing][i];
+    return i < 0 ? code : REMAP_TABLE[getEffectiveFacing()][i];
 }
 
-function angleToMoveKey(dx, dy) {
-    const a = ((Math.atan2(dy, dx) * 180 / Math.PI) + 360) % 360;
-    let raw;
-    if (a >= 337.5 || a < 22.5)  raw = 108; // E
-    else if (a < 67.5)            raw = 110; // SE
-    else if (a < 112.5)           raw = 106; // S
-    else if (a < 157.5)           raw =  98; // SW
-    else if (a < 202.5)           raw = 104; // W
-    else if (a < 247.5)           raw = 121; // NW
-    else if (a < 292.5)           raw = 107; // N
-    else                           raw = 117; // NE
-    return remapDirKey(raw);
+// ━━ Dパッド イベント ━━
+let dpadRepeatTimer = null;
+let dpadRepeatKey   = null;
+
+function dpadStop() {
+    if (dpadRepeatTimer) { clearInterval(dpadRepeatTimer); dpadRepeatTimer = null; }
+    dpadRepeatKey = null;
+    document.querySelectorAll('.dp-btn.active').forEach(b => b.classList.remove('active'));
 }
 
-function getJoyCenter() {
-    const r = joyOuter.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+function dpadFire(btn) {
+    const raw = parseInt(btn.dataset.raw, 10);
+    const key = (raw === 46) ? raw : remapDirKey(raw); // wait(.=46) はリマップしない
+    dpadStop();
+    btn.classList.add('active');
+    dpadRepeatKey = key;
+    sendKey(key);
+    dpadRepeatTimer = setInterval(() => sendKey(key), 150);
 }
 
-function joyMoveXY(tx, ty) {
-    const dx = tx - joyCX, dy = ty - joyCY;
-    const dist = Math.hypot(dx, dy);
-    const clamp = Math.min(dist, JOY_R);
-    const angle = Math.atan2(dy, dx);
-    const ox = Math.cos(angle) * clamp;
-    const oy = Math.sin(angle) * clamp;
-    joyThumb.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`;
-    if (dist < JOY_DEAD) { stopJoyRepeat(); return; }
-    const key = angleToMoveKey(dx, dy);
-    if (key !== joyKeyCode) {
-        stopJoyRepeat();
-        joyKeyCode = key;
-        sendKey(key);
-        joyRepeat = setInterval(() => sendKey(key), 180);
-    }
-}
-
-function stopJoyRepeat() {
-    if (joyRepeat) { clearInterval(joyRepeat); joyRepeat = null; }
-    joyKeyCode = null;
-}
-
-function joyEnd() {
-    joyActive = false;
-    joyTouchId = null;
-    stopJoyRepeat();
-    joyThumb.style.transform = 'translate(-50%,-50%)';
-}
-
-// ── タッチ ──
-joyOuter.addEventListener('touchstart', (e) => {
+document.getElementById('dpad-wrap')?.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('.dp-btn');
+    if (!btn) return;
     e.preventDefault();
-    if (joyTouchId !== null) return;
-    const t = e.changedTouches[0];
-    joyTouchId = t.identifier;
-    joyActive = true;
-    const c = getJoyCenter(); joyCX = c.x; joyCY = c.y;
-    joyMoveXY(t.clientX, t.clientY);
-}, { passive: false });
-document.addEventListener('touchmove', (e) => {
-    if (!joyActive) return;
-    for (const t of e.changedTouches) {
-        if (t.identifier === joyTouchId) { e.preventDefault(); joyMoveXY(t.clientX, t.clientY); break; }
-    }
-}, { passive: false });
-document.addEventListener('touchend', (e) => {
-    if (!joyActive) return;
-    for (const t of e.changedTouches) { if (t.identifier === joyTouchId) { joyEnd(); break; } }
+    btn.setPointerCapture(e.pointerId);
+    dpadFire(btn);
 });
-document.addEventListener('touchcancel', () => { if (joyActive) joyEnd(); });
-
-// ── マウス ──
-joyOuter.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    joyActive = true;
-    const c = getJoyCenter(); joyCX = c.x; joyCY = c.y;
-    joyMoveXY(e.clientX, e.clientY);
-    joyOuter.style.cursor = 'grabbing';
-});
-document.addEventListener('mousemove', (e) => {
-    if (!joyActive) return;
-    joyMoveXY(e.clientX, e.clientY);
-});
-document.addEventListener('mouseup', () => {
-    if (!joyActive) return;
-    joyEnd();
-    joyOuter.style.cursor = 'grab';
-});
+document.getElementById('dpad-wrap')?.addEventListener('pointerup',     () => dpadStop());
+document.getElementById('dpad-wrap')?.addEventListener('pointercancel', () => dpadStop());
+document.getElementById('dpad-wrap')?.addEventListener('contextmenu',   (e) => e.preventDefault());
 
 
 // ━━ カメラスワイプ ━━
