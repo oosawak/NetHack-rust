@@ -1115,12 +1115,8 @@ function drawMinimap() {
 }
 
 function updateMinimapVisibility() {
-    // TOPビューではミニマップ不要 (全体が見えるため)
-    if (currentCamMode === 'TOP') {
-        minimapWrap.classList.add('hidden');
-    } else {
-        minimapWrap.classList.remove('hidden');
-    }
+    // 全カメラモードでミニマップを表示
+    minimapWrap.classList.remove('hidden');
 }
 
 // ━━ 3Dキャンバスリサイズ (キーボード表示時は縮小しない) ━━
@@ -1441,6 +1437,8 @@ function getEffectiveFacing() {
 }
 
 function remapDirKey(code) {
+    // TOPカメラ: 絶対方向 (リマップなし)
+    if (currentCamMode === 'TOP') return code;
     const i = REMAP_KEYS.indexOf(code);
     return i < 0 ? code : REMAP_TABLE[getEffectiveFacing()][i];
 }
