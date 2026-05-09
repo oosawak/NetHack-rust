@@ -2,9 +2,14 @@
 
 > **🚀 Active Development** | Phase 6.2 Complete: WASM Browser Demo Ready
 
-NetHack 5.0 ported to **FFI-First** approach using Rust + wgpu + WebGPU. Reuses ~250k lines of stable C game logic while implementing modern 3D graphics for Desktop, WASM, and Unity.
+## ⚠️ 開発中 / Work In Progress
+
+> このプロジェクトは現在活発に開発中です。機能は随時追加・変更されます。
+> This project is under active development. Features are added and changed frequently.
 
 ---
+
+
 
 ## 🎯 Project Vision
 

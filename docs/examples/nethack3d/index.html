@@ -56,7 +56,22 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     z-index: 50;
 }
 
-/* ミニマップ */
+/* 開発中バナー */
+#dev-banner {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(180,80,0,0.85);
+    color: #ffe;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    text-align: center;
+    padding: 3px 8px;
+    z-index: 30;
+    pointer-events: none;
+    letter-spacing: 0.03em;
+}
+
+
 #minimap-wrap {
     position: fixed;
     top: 44px; right: 8px;
@@ -315,31 +330,50 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     touch-action: none;
     -webkit-user-select: none; user-select: none;
 }
-/* 常時表示の固定ジョイスティック */
-#joy-outer {
+/* ━━ Dパッド ━━ */
+#dpad-wrap {
     position: fixed;
-    left: 20px; bottom: 76px;
-    width: 120px; height: 120px;
-    border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.35);
-    background: rgba(0,0,0,0.55);
-    display: block;
+    left: 12px; bottom: 70px;
+    width: 148px; height: 148px;
     z-index: 16;
     touch-action: none;
     -webkit-user-select: none; user-select: none;
-    cursor: grab;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 3px;
 }
-#joy-thumb {
-    position: absolute;
-    width: 48px; height: 48px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.60);
-    border: 2px solid rgba(255,255,255,0.9);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-    top: 50%; left: 50%;
-    transform: translate(-50%,-50%);
-    transition: background 0.1s;
-    pointer-events: none;
+.dp-btn {
+    border-radius: 8px;
+    border: 1.5px solid rgba(255,255,255,0.25);
+    background: rgba(0,0,0,0.60);
+    color: rgba(255,255,255,0.85);
+    font-size: 20px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.06s, border-color 0.06s;
+    -webkit-tap-highlight-color: transparent;
+}
+.dp-btn.cardinal {
+    background: rgba(10,20,40,0.75);
+    border-color: rgba(80,160,255,0.40);
+    font-size: 22px;
+}
+.dp-btn.center {
+    background: rgba(30,30,30,0.70);
+    border-color: rgba(255,255,255,0.20);
+    font-size: 15px;
+    color: rgba(255,255,255,0.50);
+}
+.dp-btn.diag {
+    font-size: 16px;
+    border-color: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.55);
+}
+.dp-btn.active, .dp-btn:active {
+    background: rgba(50,120,220,0.55) !important;
+    border-color: rgba(120,200,255,0.90) !important;
+    color: #fff !important;
 }
 /* カメラスワイプ ヒント */
 #cam-zone-hint {
@@ -529,6 +563,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     <div id="status"></div>
 </div>
 
+<!-- 開発中バナー -->
+<div id="dev-banner">🚧 開発中 (Work In Progress) — 機能は予告なく変更されることがあります</div>
+
 <!-- ローディング表示 -->
 <div id="loading">Loading NetHack 3D...\n(初回は数秒かかります)</div>
 
@@ -553,9 +590,18 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     autocapitalize="none" spellcheck="false"
     inputmode="text" />
 
-<!-- ジョイスティック ゾーン (左: 移動) -->
-<div id="joy-zone"></div>
-<div id="joy-outer"><div id="joy-thumb"></div></div>
+<!-- Dパッド (8方向 + 待機) -->
+<div id="dpad-wrap">
+    <button class="dp-btn diag"    data-raw="121">↖</button>
+    <button class="dp-btn cardinal" data-raw="107">↑</button>
+    <button class="dp-btn diag"    data-raw="117">↗</button>
+    <button class="dp-btn cardinal" data-raw="104">←</button>
+    <button class="dp-btn center"  data-raw="46">·</button>
+    <button class="dp-btn cardinal" data-raw="108">→</button>
+    <button class="dp-btn diag"    data-raw="98">↙</button>
+    <button class="dp-btn cardinal" data-raw="106">↓</button>
+    <button class="dp-btn diag"    data-raw="110">↘</button>
+</div>
 
 <!-- カメラスワイプ ゾーン (右) -->
 <div id="cam-zone"></div>
@@ -718,6 +764,10 @@ const TILE_PUDDING    = 53;
 const TILE_ANT        = 54;
 const TILE_GARGOYLE   = 55;
 const TILE_KRAKEN     = 56;
+const TILE_FOUNTAIN   = 57;
+const TILE_ALTAR      = 58;
+const TILE_TRAP       = 59;
+const TILE_PILLAR     = 60;
 
 // ━━ モンスターtier テーブル ━━
 // NetHack各キャラの強さを 0=小型 1=通常 2=大型 3=ボス の4段階で表す
@@ -779,6 +829,10 @@ function charToTile(ch) {
     if (ch === 'a' || ch === 'A') return TILE_ANT       | tierBits; // アリ/ムカデ
     if (ch === 'g')               return TILE_GARGOYLE  | tierBits; // ガーゴイル
     if (ch === '~')               return TILE_KRAKEN    | tierBits; // クラーケン
+    if (ch === '{')               return TILE_FOUNTAIN  | 0;        // 噴水
+    if (ch === '_')               return TILE_ALTAR     | 0;        // 祭壇
+    if (ch === '^')               return TILE_TRAP      | 0;        // トラップ
+    if (ch === '0')               return TILE_PILLAR    | 0;        // 柱
     if (ch === 'V')               return TILE_VAMPIRE   | tierBits; // ヴァンパイア
     if (ch === 'L')               return TILE_LICH      | tierBits; // リッチ
     if (ch === 'd') return TILE_DOG    | tierBits;
@@ -974,7 +1028,7 @@ function update3dMap() {
             if (ch === '@') { foundPX = dx; foundPZ = dy; }
             // エンティティ収集 (タップ情報用) — tierビットをマスクして比較
             const bt = t & 0x3F;
-            if (bt === TILE_MONSTER || bt === TILE_DOG || bt === TILE_CAT || bt === TILE_RAT || bt === TILE_BAT || bt === TILE_SLIME || bt === TILE_ORC || bt === TILE_ZOMBIE || bt === TILE_SNAKE || bt === TILE_EYE || bt === TILE_UNICORN || bt === TILE_TROLL || bt === TILE_DRAGON || bt === TILE_LEPRECHAUN || bt === TILE_KOBOLD || bt === TILE_NYMPH || bt === TILE_VAMPIRE || bt === TILE_LICH || bt === TILE_YETI || bt === TILE_ANGEL || bt === TILE_CENTAUR || bt === TILE_GIANT || bt === TILE_WRAITH || bt === TILE_DEMON || bt === TILE_MUMMY || bt === TILE_VAMP_BAT || bt === TILE_GNOME || bt === TILE_STALKER || bt === TILE_XORN || bt === TILE_MIMIC || bt === TILE_HOBGOBLIN || bt === TILE_RUST_MON || bt === TILE_QUASIT || bt === TILE_GRID_BUG || bt === TILE_GOLEM || bt === TILE_CHEST || bt === TILE_FUNGUS || bt === TILE_HUMANOID || bt === TILE_ELEMENTAL || bt === TILE_SEA_MON || bt === TILE_JELLY || bt === TILE_WORM || bt === TILE_NAGA || bt === TILE_IMP || bt === TILE_PUDDING || bt === TILE_ANT || bt === TILE_GARGOYLE || bt === TILE_KRAKEN || bt === TILE_ITEM ||
+            if (bt === TILE_MONSTER || bt === TILE_DOG || bt === TILE_CAT || bt === TILE_RAT || bt === TILE_BAT || bt === TILE_SLIME || bt === TILE_ORC || bt === TILE_ZOMBIE || bt === TILE_SNAKE || bt === TILE_EYE || bt === TILE_UNICORN || bt === TILE_TROLL || bt === TILE_DRAGON || bt === TILE_LEPRECHAUN || bt === TILE_KOBOLD || bt === TILE_NYMPH || bt === TILE_VAMPIRE || bt === TILE_LICH || bt === TILE_YETI || bt === TILE_ANGEL || bt === TILE_CENTAUR || bt === TILE_GIANT || bt === TILE_WRAITH || bt === TILE_DEMON || bt === TILE_MUMMY || bt === TILE_VAMP_BAT || bt === TILE_GNOME || bt === TILE_STALKER || bt === TILE_XORN || bt === TILE_MIMIC || bt === TILE_HOBGOBLIN || bt === TILE_RUST_MON || bt === TILE_QUASIT || bt === TILE_GRID_BUG || bt === TILE_GOLEM || bt === TILE_CHEST || bt === TILE_FUNGUS || bt === TILE_HUMANOID || bt === TILE_ELEMENTAL || bt === TILE_SEA_MON || bt === TILE_JELLY || bt === TILE_WORM || bt === TILE_NAGA || bt === TILE_IMP || bt === TILE_PUDDING || bt === TILE_ANT || bt === TILE_GARGOYLE || bt === TILE_KRAKEN || bt === TILE_FOUNTAIN || bt === TILE_ALTAR || bt === TILE_TRAP || bt === TILE_PILLAR || bt === TILE_ITEM ||
                 bt === TILE_STAIRS_U || bt === TILE_STAIRS_D || bt === TILE_PLAYER) {
                 entityList.push({ tx: dx, tz: dy, ch, t });
             }
